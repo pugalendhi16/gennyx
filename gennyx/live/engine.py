@@ -246,10 +246,28 @@ class LiveTradingEngine:
                 f"ENTERED LONG: {position.quantity} contracts @ ${quote.last_price:.2f} | "
                 f"Stop: ${signal.stop_loss:.2f}"
             )
+
+            # Save entry signal to database
+            signal_record = {
+                "timestamp": signal.timestamp.isoformat() if signal.timestamp else datetime.now().isoformat(),
+                "signal_type": "entry_long",
+                "price": quote.last_price,
+                "stop_loss": signal.stop_loss,
+                "atr": signal.atr,
+                "reason": signal.reason,
+                "executed": True,
+            }
+            self.state_manager.save_signal(signal_record, self.config.schwab_symbol)
+
             self._save_state()
 
     def _execute_exit(self, signal, quote: Quote):
         """Execute a paper exit."""
+        # Get position info before exit for trade record
+        pos = self.paper_trader.current_position
+        entry_atr = pos.entry_atr if pos else None
+        stop_loss = pos.stop_loss if pos else None
+
         trade = self.paper_trader.exit_position(
             price=quote.last_price,
             reason=signal.reason,
@@ -262,7 +280,50 @@ class LiveTradingEngine:
                 f"P&L: ${trade.pnl:+.2f} ({trade.pnl_percent:+.2%})"
             )
 
+            # Save trade to database
+            trade_record = {
+                "entry_time": trade.entry_time.isoformat(),
+                "exit_time": trade.exit_time.isoformat(),
+                "entry_price": trade.entry_price,
+                "exit_price": trade.exit_price,
+                "quantity": trade.quantity,
+                "pnl": trade.pnl,
+                "pnl_percent": trade.pnl_percent,
+                "entry_reason": trade.entry_reason,
+                "exit_reason": trade.exit_reason,
+                "entry_atr": entry_atr,
+                "stop_loss": stop_loss,
+            }
+            self.state_manager.save_trade(trade_record, self.config.schwab_symbol)
+
+            # Save daily stats
             stats = self.paper_trader.get_daily_stats()
+            daily_record = {
+                "date": stats.date,
+                "starting_capital": stats.starting_capital,
+                "ending_capital": stats.ending_capital,
+                "pnl": stats.pnl,
+                "pnl_percent": stats.pnl / stats.starting_capital if stats.starting_capital > 0 else 0,
+                "trade_count": stats.trade_count,
+                "winning_trades": stats.winning_trades,
+                "losing_trades": stats.losing_trades,
+                "largest_win": trade.pnl if trade.pnl > 0 else None,
+                "largest_loss": trade.pnl if trade.pnl < 0 else None,
+            }
+            self.state_manager.save_daily_stats(daily_record, self.config.schwab_symbol)
+
+            # Save exit signal to database
+            exit_signal_record = {
+                "timestamp": signal.timestamp.isoformat() if signal.timestamp else datetime.now().isoformat(),
+                "signal_type": "exit_long",
+                "price": quote.last_price,
+                "stop_loss": stop_loss,
+                "atr": entry_atr,
+                "reason": signal.reason,
+                "executed": True,
+            }
+            self.state_manager.save_signal(exit_signal_record, self.config.schwab_symbol)
+
             logger.info(
                 f"Daily: {stats.trade_count} trades, ${stats.pnl:+.2f} P&L, "
                 f"Capital: ${self.paper_trader.capital:,.2f}"
@@ -309,8 +370,18 @@ class LiveTradingEngine:
         stats = self.paper_trader.get_daily_stats()
         logger.info(f"  Daily P&L: ${stats.pnl:+.2f} ({stats.trade_count} trades)")
 
-        total = self.paper_trader.get_total_stats()
-        logger.info(f"  Total: {total['total_trades']} trades, {total['win_rate']:.0%} win rate")
+        # Get total stats from database for accurate historical tracking
+        db_stats = self.state_manager.get_total_stats(self.config.schwab_symbol)
+        if db_stats:
+            logger.info(
+                f"  Total (DB): {db_stats['total_trades']} trades, "
+                f"{db_stats['win_rate']:.0%} win rate, "
+                f"${db_stats['total_pnl']:+.2f} P&L"
+            )
+        else:
+            total = self.paper_trader.get_total_stats()
+            logger.info(f"  Total: {total['total_trades']} trades, {total['win_rate']:.0%} win rate")
+
         logger.info(f"  Primary Candles: {len(self.candle_builder.primary_candles)}")
         logger.info("-" * 60)
 

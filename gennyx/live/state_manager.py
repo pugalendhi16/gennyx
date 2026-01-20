@@ -290,6 +290,254 @@ class StatePersistence:
         elapsed = (datetime.now() - self._last_save_time).total_seconds()
         return elapsed >= interval_seconds
 
+    def save_trade(self, trade: Dict[str, Any], symbol: str = "/MNQ") -> bool:
+        """
+        Save a completed trade to the trades table.
+
+        Args:
+            trade: Trade dictionary with entry/exit details
+            symbol: Trading symbol
+
+        Returns:
+            True if save successful
+        """
+        if not self.database_url:
+            logger.warning("No database URL configured, trade not saved")
+            return False
+
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO trades (
+                        symbol, entry_time, exit_time, entry_price, exit_price,
+                        quantity, pnl, pnl_percent, entry_reason, exit_reason,
+                        entry_atr, stop_loss
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                """, (
+                    symbol,
+                    trade.get("entry_time"),
+                    trade.get("exit_time"),
+                    trade.get("entry_price"),
+                    trade.get("exit_price"),
+                    trade.get("quantity"),
+                    trade.get("pnl"),
+                    trade.get("pnl_percent"),
+                    trade.get("entry_reason", ""),
+                    trade.get("exit_reason", ""),
+                    trade.get("entry_atr"),
+                    trade.get("stop_loss"),
+                ))
+                trade_id = cur.fetchone()[0]
+                conn.commit()
+
+            logger.info(f"Trade saved to database (id={trade_id}): PnL=${trade.get('pnl', 0):+.2f}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to save trade: {e}")
+            return False
+
+    def save_signal(self, signal: Dict[str, Any], symbol: str = "/MNQ") -> bool:
+        """
+        Save a trading signal to the signals table for audit.
+
+        Args:
+            signal: Signal dictionary
+            symbol: Trading symbol
+
+        Returns:
+            True if save successful
+        """
+        if not self.database_url:
+            return False
+
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO signals (
+                        symbol, timestamp, signal_type, price, stop_loss, atr, reason, executed
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    symbol,
+                    signal.get("timestamp"),
+                    signal.get("signal_type"),
+                    signal.get("price"),
+                    signal.get("stop_loss"),
+                    signal.get("atr"),
+                    signal.get("reason", ""),
+                    signal.get("executed", False),
+                ))
+                conn.commit()
+
+            logger.debug(f"Signal saved: {signal.get('signal_type')}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to save signal: {e}")
+            return False
+
+    def save_daily_stats(self, stats: Dict[str, Any], symbol: str = "/MNQ") -> bool:
+        """
+        Save or update daily statistics.
+
+        Args:
+            stats: Daily statistics dictionary
+            symbol: Trading symbol
+
+        Returns:
+            True if save successful
+        """
+        if not self.database_url:
+            return False
+
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO daily_stats (
+                        trade_date, symbol, starting_capital, ending_capital,
+                        pnl, pnl_percent, trade_count, winning_trades, losing_trades,
+                        largest_win, largest_loss
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (trade_date)
+                    DO UPDATE SET
+                        ending_capital = EXCLUDED.ending_capital,
+                        pnl = EXCLUDED.pnl,
+                        pnl_percent = EXCLUDED.pnl_percent,
+                        trade_count = EXCLUDED.trade_count,
+                        winning_trades = EXCLUDED.winning_trades,
+                        losing_trades = EXCLUDED.losing_trades,
+                        largest_win = EXCLUDED.largest_win,
+                        largest_loss = EXCLUDED.largest_loss,
+                        updated_at = CURRENT_TIMESTAMP
+                """, (
+                    stats.get("date"),
+                    symbol,
+                    stats.get("starting_capital"),
+                    stats.get("ending_capital"),
+                    stats.get("pnl"),
+                    stats.get("pnl_percent"),
+                    stats.get("trade_count"),
+                    stats.get("winning_trades"),
+                    stats.get("losing_trades"),
+                    stats.get("largest_win"),
+                    stats.get("largest_loss"),
+                ))
+                conn.commit()
+
+            logger.debug(f"Daily stats saved for {stats.get('date')}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to save daily stats: {e}")
+            return False
+
+    def get_trades(self, limit: int = 100, symbol: str = "/MNQ") -> list:
+        """
+        Get recent trades from database.
+
+        Args:
+            limit: Maximum number of trades to return
+            symbol: Trading symbol
+
+        Returns:
+            List of trade dictionaries
+        """
+        if not self.database_url:
+            return []
+
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT id, symbol, entry_time, exit_time, entry_price, exit_price,
+                           quantity, pnl, pnl_percent, entry_reason, exit_reason,
+                           entry_atr, stop_loss, created_at
+                    FROM trades
+                    WHERE symbol = %s
+                    ORDER BY exit_time DESC
+                    LIMIT %s
+                """, (symbol, limit))
+                rows = cur.fetchall()
+
+            trades = []
+            for row in rows:
+                trades.append({
+                    "id": row[0],
+                    "symbol": row[1],
+                    "entry_time": row[2].isoformat() if row[2] else None,
+                    "exit_time": row[3].isoformat() if row[3] else None,
+                    "entry_price": float(row[4]) if row[4] else None,
+                    "exit_price": float(row[5]) if row[5] else None,
+                    "quantity": row[6],
+                    "pnl": float(row[7]) if row[7] else 0,
+                    "pnl_percent": float(row[8]) if row[8] else 0,
+                    "entry_reason": row[9],
+                    "exit_reason": row[10],
+                    "entry_atr": float(row[11]) if row[11] else None,
+                    "stop_loss": float(row[12]) if row[12] else None,
+                    "created_at": row[13].isoformat() if row[13] else None,
+                })
+
+            return trades
+
+        except Exception as e:
+            logger.error(f"Failed to get trades: {e}")
+            return []
+
+    def get_total_stats(self, symbol: str = "/MNQ") -> Dict[str, Any]:
+        """
+        Get aggregated statistics from all trades.
+
+        Args:
+            symbol: Trading symbol
+
+        Returns:
+            Dictionary with total statistics
+        """
+        if not self.database_url:
+            return {}
+
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT
+                        COUNT(*) as total_trades,
+                        COUNT(*) FILTER (WHERE pnl >= 0) as winning_trades,
+                        COUNT(*) FILTER (WHERE pnl < 0) as losing_trades,
+                        COALESCE(SUM(pnl), 0) as total_pnl,
+                        COALESCE(AVG(pnl), 0) as avg_pnl,
+                        COALESCE(MAX(pnl), 0) as largest_win,
+                        COALESCE(MIN(pnl), 0) as largest_loss
+                    FROM trades
+                    WHERE symbol = %s
+                """, (symbol,))
+                row = cur.fetchone()
+
+            if row:
+                total_trades = row[0] or 0
+                winning_trades = row[1] or 0
+                return {
+                    "total_trades": total_trades,
+                    "winning_trades": winning_trades,
+                    "losing_trades": row[2] or 0,
+                    "win_rate": winning_trades / total_trades if total_trades > 0 else 0,
+                    "total_pnl": float(row[3]),
+                    "avg_pnl": float(row[4]),
+                    "largest_win": float(row[5]),
+                    "largest_loss": float(row[6]),
+                }
+
+            return {}
+
+        except Exception as e:
+            logger.error(f"Failed to get total stats: {e}")
+            return {}
+
     def close(self):
         """Close database connection."""
         if self._conn:

@@ -33,6 +33,11 @@ def setup_logging(log_level: str = "INFO"):
         datefmt="%Y-%m-%d %H:%M:%S",
         stream=sys.stdout,
     )
+
+    # Suppress verbose HTTP request logs from httpx/httpcore
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+
     return logging.getLogger(__name__)
 
 

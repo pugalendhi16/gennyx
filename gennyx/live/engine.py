@@ -171,10 +171,6 @@ class LiveTradingEngine:
                 if completed_primary:
                     self._on_bar_close(completed_primary, quote)
 
-                # Check exit conditions on every tick if in position
-                if self.paper_trader.has_position():
-                    self._check_exit_conditions(quote)
-
                 # Periodic state save
                 if self.state_manager.should_save(self.config.save_interval):
                     self._save_state()
@@ -208,6 +204,11 @@ class LiveTradingEngine:
         self._last_bar_time = completed_candle.timestamp
         self._update_signal_generator()
 
+        # Check exit first if in position
+        if self.paper_trader.has_position():
+            self._check_exit_conditions(quote)
+
+        # Check entry if not in position
         if not self.paper_trader.has_position():
             signal = self.signal_generator.check_entry()
 

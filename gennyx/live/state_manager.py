@@ -38,43 +38,38 @@ class StatePersistence:
             self._init_database()
 
     def _get_connection(self):
-        """Get database connection with retry logic."""
-        if self._conn is None or self._conn.closed:
-            max_retries = 3
-            retry_delay = 1  # seconds
-
-            for attempt in range(max_retries):
-                try:
-                    # sslmode is already in the URL, no need to pass separately
-                    self._conn = psycopg2.connect(self.database_url)
-                    return self._conn
-                except psycopg2.OperationalError as e:
-                    if attempt < max_retries - 1:
-                        logger.warning(f"Database connection attempt {attempt + 1} failed, retrying...")
-                        time.sleep(retry_delay)
-                        retry_delay *= 2  # Exponential backoff
-                    else:
-                        logger.error(f"Failed to connect after {max_retries} attempts: {e}")
-                        raise
-
-        # Check if connection is in error state and reset if needed
-        try:
-            if self._conn.status == psycopg2.extensions.TRANSACTION_STATUS_INERROR:
-                self._conn.rollback()
-        except Exception:
-            # Connection might be broken, force reconnect
+        """Get a fresh database connection."""
+        # Always close existing connection and create fresh one
+        # This avoids transaction state issues with connection pooling
+        if self._conn:
+            try:
+                self._conn.close()
+            except Exception:
+                pass
             self._conn = None
-            return self._get_connection()
+
+        max_retries = 3
+        retry_delay = 1  # seconds
+
+        for attempt in range(max_retries):
+            try:
+                self._conn = psycopg2.connect(self.database_url)
+                self._conn.autocommit = False
+                return self._conn
+            except psycopg2.OperationalError as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Database connection attempt {attempt + 1} failed, retrying...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2  # Exponential backoff
+                else:
+                    logger.error(f"Failed to connect after {max_retries} attempts: {e}")
+                    raise
 
         return self._conn
 
     def _reset_connection(self):
         """Reset the database connection."""
         if self._conn:
-            try:
-                self._conn.rollback()
-            except Exception:
-                pass
             try:
                 self._conn.close()
             except Exception:

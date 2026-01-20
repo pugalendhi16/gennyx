@@ -57,7 +57,29 @@ class StatePersistence:
                         logger.error(f"Failed to connect after {max_retries} attempts: {e}")
                         raise
 
+        # Check if connection is in error state and reset if needed
+        try:
+            if self._conn.status == psycopg2.extensions.TRANSACTION_STATUS_INERROR:
+                self._conn.rollback()
+        except Exception:
+            # Connection might be broken, force reconnect
+            self._conn = None
+            return self._get_connection()
+
         return self._conn
+
+    def _reset_connection(self):
+        """Reset the database connection."""
+        if self._conn:
+            try:
+                self._conn.rollback()
+            except Exception:
+                pass
+            try:
+                self._conn.close()
+            except Exception:
+                pass
+        self._conn = None
 
     def _execute_with_retry(self, operation, *args, **kwargs):
         """Execute a database operation with retry on connection failure."""
@@ -121,27 +143,9 @@ class StatePersistence:
             logger.debug("Trading state saved to database")
             return True
 
-        except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
-            # Connection error - try to reconnect and retry once
-            logger.warning(f"Connection error during save, retrying: {e}")
-            self._conn = None
-            try:
-                conn = self._get_connection()
-                with conn.cursor() as cur:
-                    cur.execute("""
-                        INSERT INTO trading_state (state_type, data, updated_at)
-                        VALUES ('trading', %s, CURRENT_TIMESTAMP)
-                        ON CONFLICT (state_type)
-                        DO UPDATE SET data = %s, updated_at = CURRENT_TIMESTAMP
-                    """, (Json(state), Json(state)))
-                    conn.commit()
-                self._last_save_time = datetime.now()
-                return True
-            except Exception as retry_error:
-                logger.error(f"Failed to save trading state after retry: {retry_error}")
-                return False
         except Exception as e:
             logger.error(f"Failed to save trading state: {e}")
+            self._reset_connection()
             return False
 
     def load_trading_state(self) -> Optional[Dict[str, Any]]:
@@ -175,6 +179,7 @@ class StatePersistence:
 
         except Exception as e:
             logger.error(f"Failed to load trading state: {e}")
+            self._reset_connection()
             return None
 
     def save_candle_history(self, candle_data: Dict[str, Any]) -> bool:
@@ -207,6 +212,7 @@ class StatePersistence:
 
         except Exception as e:
             logger.error(f"Failed to save candle history: {e}")
+            self._reset_connection()
             return False
 
     def load_candle_history(self) -> Optional[Dict[str, Any]]:
@@ -239,6 +245,7 @@ class StatePersistence:
 
         except Exception as e:
             logger.error(f"Failed to load candle history: {e}")
+            self._reset_connection()
             return None
 
     def save_all(
@@ -337,6 +344,7 @@ class StatePersistence:
 
         except Exception as e:
             logger.error(f"Failed to save trade: {e}")
+            self._reset_connection()
             return False
 
     def save_signal(self, signal: Dict[str, Any], symbol: str = "/MNQ") -> bool:
@@ -377,6 +385,7 @@ class StatePersistence:
 
         except Exception as e:
             logger.error(f"Failed to save signal: {e}")
+            self._reset_connection()
             return False
 
     def save_daily_stats(self, stats: Dict[str, Any], symbol: str = "/MNQ") -> bool:
@@ -433,6 +442,7 @@ class StatePersistence:
 
         except Exception as e:
             logger.error(f"Failed to save daily stats: {e}")
+            self._reset_connection()
             return False
 
     def get_trades(self, limit: int = 100, symbol: str = "/MNQ") -> list:
@@ -486,6 +496,7 @@ class StatePersistence:
 
         except Exception as e:
             logger.error(f"Failed to get trades: {e}")
+            self._reset_connection()
             return []
 
     def get_total_stats(self, symbol: str = "/MNQ") -> Dict[str, Any]:
@@ -536,6 +547,7 @@ class StatePersistence:
 
         except Exception as e:
             logger.error(f"Failed to get total stats: {e}")
+            self._reset_connection()
             return {}
 
     def close(self):

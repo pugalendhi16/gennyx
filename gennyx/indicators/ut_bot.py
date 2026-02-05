@@ -51,20 +51,24 @@ def ut_bot_alert(
     """
     result = pd.DataFrame(index=df.index)
 
-    # Use Heikin-Ashi if specified
+    # Use Heikin-Ashi if specified (matches TOS: ATR also uses HA OHLC)
     if use_heikin_ashi:
         ha_close = (df["open"] + df["high"] + df["low"] + df["close"]) / 4
         ha_open = (df["open"].shift(1) + df["close"].shift(1)) / 2
         ha_open.iloc[0] = df["open"].iloc[0]
+        ha_high = pd.concat([df["high"], ha_open, ha_close], axis=1).max(axis=1)
+        ha_low = pd.concat([df["low"], ha_open, ha_close], axis=1).min(axis=1)
         src = ha_close
+        atr_high, atr_low, atr_close = ha_high, ha_low, ha_close
     else:
         src = df["close"].copy()
+        atr_high, atr_low, atr_close = df["high"], df["low"], df["close"]
 
     # Calculate ATR
     if ta is not None:
-        atr = ta.atr(df["high"], df["low"], df["close"], length=atr_period)
+        atr = ta.atr(atr_high, atr_low, atr_close, length=atr_period)
     else:
-        atr = calculate_atr(df["high"], df["low"], df["close"], period=atr_period)
+        atr = calculate_atr(atr_high, atr_low, atr_close, period=atr_period)
 
     # ATR trailing stop distance
     n_loss = sensitivity * atr

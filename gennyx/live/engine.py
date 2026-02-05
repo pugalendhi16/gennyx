@@ -289,7 +289,17 @@ class LiveTradingEngine:
         if not session_changed:
             self._update_signal_generator()
 
-        # Save candle + UT Bot signal to DB
+        # Save raw candle to candles table
+        self.state_manager.save_candle({
+            "timestamp": completed_candle.timestamp,
+            "open": float(completed_candle.open),
+            "high": float(completed_candle.high),
+            "low": float(completed_candle.low),
+            "close": float(completed_candle.close),
+            "volume": completed_candle.volume,
+        }, symbol=self.config.schwab_symbol, timeframe=self.config.primary_tf)
+
+        # Save candle + UT Bot signal + HA OHLC to candle_signals DB
         indicators = self.signal_generator.get_current_indicators()
         ut_signal = "BUY" if indicators.get("ut_buy_signal") else (
             "SELL" if indicators.get("ut_sell_signal") else "NONE"
@@ -297,6 +307,10 @@ class LiveTradingEngine:
         ut_trend = indicators.get("ut_trend")
         ut_trailing_stop = indicators.get("ut_trailing_stop")
         atr_val = indicators.get("atr")
+        ha_open = indicators.get("ha_open")
+        ha_high = indicators.get("ha_high")
+        ha_low = indicators.get("ha_low")
+        ha_close = indicators.get("ha_close")
         self.state_manager.save_candle_signal({
             "timestamp": completed_candle.timestamp,
             "open": float(completed_candle.open),
@@ -308,6 +322,10 @@ class LiveTradingEngine:
             "ut_trend": int(ut_trend) if ut_trend is not None else None,
             "ut_trailing_stop": float(ut_trailing_stop) if ut_trailing_stop is not None else None,
             "atr": float(atr_val) if atr_val is not None else None,
+            "ha_open": float(ha_open) if ha_open is not None else None,
+            "ha_high": float(ha_high) if ha_high is not None else None,
+            "ha_low": float(ha_low) if ha_low is not None else None,
+            "ha_close": float(ha_close) if ha_close is not None else None,
         }, symbol=self.config.schwab_symbol)
 
         # Check exit first if in position

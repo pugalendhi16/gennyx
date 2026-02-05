@@ -117,12 +117,36 @@ class StatePersistence:
                         ut_trend INTEGER,
                         ut_trailing_stop DECIMAL(12, 4),
                         atr DECIMAL(10, 4),
+                        ha_open DECIMAL(12, 4),
+                        ha_high DECIMAL(12, 4),
+                        ha_low DECIMAL(12, 4),
+                        ha_close DECIMAL(12, 4),
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         UNIQUE(symbol, timestamp)
                     )
                 """)
+                # Add HA columns to existing table (safe for production)
+                for col in ("ha_open", "ha_high", "ha_low", "ha_close"):
+                    cur.execute(f"ALTER TABLE candle_signals ADD COLUMN IF NOT EXISTS {col} DECIMAL(12,4)")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_candle_signals_time ON candle_signals(timestamp DESC)")
                 cur.execute("CREATE INDEX IF NOT EXISTS idx_candle_signals_signal ON candle_signals(ut_signal)")
+                # Ensure candles table exists
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS candles (
+                        id SERIAL PRIMARY KEY,
+                        symbol VARCHAR(20) NOT NULL DEFAULT '/MNQ',
+                        timeframe VARCHAR(10) NOT NULL,
+                        timestamp TIMESTAMP NOT NULL,
+                        open DECIMAL(12, 4) NOT NULL,
+                        high DECIMAL(12, 4) NOT NULL,
+                        low DECIMAL(12, 4) NOT NULL,
+                        close DECIMAL(12, 4) NOT NULL,
+                        volume BIGINT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE(symbol, timeframe, timestamp)
+                    )
+                """)
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_candles_symbol_tf_time ON candles(symbol, timeframe, timestamp DESC)")
                 conn.commit()
             logger.info("Database initialized successfully")
         except Exception as e:
@@ -411,7 +435,8 @@ class StatePersistence:
 
         Args:
             candle: Dict with timestamp, open, high, low, close, volume,
-                    ut_signal, ut_trend, ut_trailing_stop, atr
+                    ut_signal, ut_trend, ut_trailing_stop, atr,
+                    ha_open, ha_high, ha_low, ha_close
             symbol: Trading symbol
 
         Returns:
@@ -426,8 +451,9 @@ class StatePersistence:
                 cur.execute("""
                     INSERT INTO candle_signals (
                         symbol, timestamp, open, high, low, close, volume,
-                        ut_signal, ut_trend, ut_trailing_stop, atr
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ut_signal, ut_trend, ut_trailing_stop, atr,
+                        ha_open, ha_high, ha_low, ha_close
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (symbol, timestamp)
                     DO UPDATE SET
                         open = EXCLUDED.open,
@@ -438,7 +464,11 @@ class StatePersistence:
                         ut_signal = EXCLUDED.ut_signal,
                         ut_trend = EXCLUDED.ut_trend,
                         ut_trailing_stop = EXCLUDED.ut_trailing_stop,
-                        atr = EXCLUDED.atr
+                        atr = EXCLUDED.atr,
+                        ha_open = EXCLUDED.ha_open,
+                        ha_high = EXCLUDED.ha_high,
+                        ha_low = EXCLUDED.ha_low,
+                        ha_close = EXCLUDED.ha_close
                 """, (
                     symbol,
                     candle.get("timestamp"),
@@ -451,6 +481,10 @@ class StatePersistence:
                     candle.get("ut_trend"),
                     candle.get("ut_trailing_stop"),
                     candle.get("atr"),
+                    candle.get("ha_open"),
+                    candle.get("ha_high"),
+                    candle.get("ha_low"),
+                    candle.get("ha_close"),
                 ))
                 conn.commit()
 
@@ -459,6 +493,57 @@ class StatePersistence:
 
         except Exception as e:
             logger.error(f"Failed to save candle signal: {e}")
+            self._reset_connection()
+            return False
+
+    def save_candle(self, candle: Dict[str, Any], symbol: str = "/MNQ", timeframe: str = "5m") -> bool:
+        """
+        Save a raw OHLCV candle to the candles table.
+
+        Uses UPSERT to handle duplicate timestamps gracefully.
+
+        Args:
+            candle: Dict with timestamp, open, high, low, close, volume
+            symbol: Trading symbol
+            timeframe: Candle timeframe (e.g. '5m', '1h')
+
+        Returns:
+            True if save successful
+        """
+        if not self.database_url:
+            return False
+
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO candles (
+                        symbol, timeframe, timestamp, open, high, low, close, volume
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (symbol, timeframe, timestamp)
+                    DO UPDATE SET
+                        open = EXCLUDED.open,
+                        high = EXCLUDED.high,
+                        low = EXCLUDED.low,
+                        close = EXCLUDED.close,
+                        volume = EXCLUDED.volume
+                """, (
+                    symbol,
+                    timeframe,
+                    candle.get("timestamp"),
+                    candle.get("open"),
+                    candle.get("high"),
+                    candle.get("low"),
+                    candle.get("close"),
+                    candle.get("volume"),
+                ))
+                conn.commit()
+
+            logger.debug(f"Candle saved: {timeframe} {candle.get('timestamp')}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to save candle: {e}")
             self._reset_connection()
             return False
 

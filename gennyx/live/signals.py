@@ -135,6 +135,24 @@ class LiveSignalGenerator:
             period=self.config.ut_atr_period
         )
 
+        # Compute Heikin-Ashi OHLC (mirrors ut_bot.py HA formula)
+        if self.config.use_heikin_ashi:
+            ha_close = (df["open"] + df["high"] + df["low"] + df["close"]) / 4
+            ha_open = (df["open"].shift(1) + df["close"].shift(1)) / 2
+            ha_open.iloc[0] = df["open"].iloc[0]
+            ha_high = pd.concat([df["high"], ha_open, ha_close], axis=1).max(axis=1)
+            ha_low = pd.concat([df["low"], ha_open, ha_close], axis=1).min(axis=1)
+            result["ha_open"] = ha_open
+            result["ha_high"] = ha_high
+            result["ha_low"] = ha_low
+            result["ha_close"] = ha_close
+        else:
+            # Non-HA mode: HA values equal raw values
+            result["ha_open"] = df["open"]
+            result["ha_high"] = df["high"]
+            result["ha_low"] = df["low"]
+            result["ha_close"] = df["close"]
+
         return result
 
     def check_entry(self) -> LiveSignal:
@@ -328,4 +346,8 @@ class LiveSignalGenerator:
             "ema_bullish_aligned": row.get("ema_bullish_aligned"),
             "bb_squeeze": row.get("bb_squeeze"),
             "atr": row.get("atr"),
+            "ha_open": row.get("ha_open"),
+            "ha_high": row.get("ha_high"),
+            "ha_low": row.get("ha_low"),
+            "ha_close": row.get("ha_close"),
         }

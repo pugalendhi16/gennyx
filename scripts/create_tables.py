@@ -151,7 +151,7 @@ CREATE TABLE IF NOT EXISTS performance_metrics (
 
 CREATE INDEX IF NOT EXISTS idx_perf_metrics_period ON performance_metrics(period_type, period_start);
 
--- 9. Candle Signals - OHLC bars with UT Bot signal status
+-- 9. Candle Signals - OHLC bars with UT Bot signal status + Heikin-Ashi OHLC
 CREATE TABLE IF NOT EXISTS candle_signals (
     id SERIAL PRIMARY KEY,
     symbol VARCHAR(20) NOT NULL DEFAULT '/MNQ',
@@ -165,9 +165,19 @@ CREATE TABLE IF NOT EXISTS candle_signals (
     ut_trend INTEGER,                                -- 1 (up) or -1 (down)
     ut_trailing_stop DECIMAL(12, 4),
     atr DECIMAL(10, 4),
+    ha_open DECIMAL(12, 4),                          -- Heikin-Ashi OHLC
+    ha_high DECIMAL(12, 4),
+    ha_low DECIMAL(12, 4),
+    ha_close DECIMAL(12, 4),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(symbol, timestamp)
 );
+
+-- Add HA columns to existing production table (idempotent)
+ALTER TABLE candle_signals ADD COLUMN IF NOT EXISTS ha_open DECIMAL(12, 4);
+ALTER TABLE candle_signals ADD COLUMN IF NOT EXISTS ha_high DECIMAL(12, 4);
+ALTER TABLE candle_signals ADD COLUMN IF NOT EXISTS ha_low DECIMAL(12, 4);
+ALTER TABLE candle_signals ADD COLUMN IF NOT EXISTS ha_close DECIMAL(12, 4);
 
 CREATE INDEX IF NOT EXISTS idx_candle_signals_time ON candle_signals(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_candle_signals_signal ON candle_signals(ut_signal);

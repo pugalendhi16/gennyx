@@ -260,6 +260,10 @@ class LiveDataBuilder:
         # Convert to target timezone
         df.index = df.index.tz_convert(self.tz)
 
+        # Remove duplicate timestamps (keep last/most recent data)
+        if df.index.duplicated().any():
+            df = df[~df.index.duplicated(keep='last')]
+
         return df
 
     def has_sufficient_data(self, min_bars: int = 50) -> bool:

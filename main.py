@@ -14,24 +14,45 @@ Optional Environment Variables:
     SCHWAB_SYMBOL       - Symbol to trade (default: /MNQ)
     POLL_INTERVAL       - Seconds between polls (default: 30)
     INITIAL_CAPITAL     - Starting capital (default: 30000)
-    SESSION_TYPE        - Trading session: rth, overnight, 24h (default: 24h)
+    SESSION_TYPE        - Trading session: auto, rth, overnight, 24h (default: auto)
     LOG_LEVEL           - Logging level (default: INFO)
 """
 
 import logging
 import sys
+from datetime import datetime
+
+import pytz
 
 from gennyx.config import Config
 from gennyx.live import LiveTradingEngine
 
 
+class ETFormatter(logging.Formatter):
+    """Formatter that outputs timestamps in Eastern Time."""
+
+    def __init__(self, fmt=None, datefmt=None):
+        super().__init__(fmt, datefmt)
+        self.et_tz = pytz.timezone("America/New_York")
+
+    def formatTime(self, record, datefmt=None):
+        ct = datetime.fromtimestamp(record.created, tz=self.et_tz)
+        if datefmt:
+            return ct.strftime(datefmt)
+        return ct.strftime("%Y-%m-%d %H:%M:%S")
+
+
 def setup_logging(log_level: str = "INFO"):
-    """Configure logging for Heroku."""
+    """Configure logging for Heroku with ET timestamps."""
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(ETFormatter(
+        fmt="%(asctime)s ET | %(levelname)-8s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    ))
+
     logging.basicConfig(
         level=getattr(logging, log_level),
-        format="%(asctime)s | %(levelname)-8s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        stream=sys.stdout,
+        handlers=[handler],
     )
 
     # Suppress verbose HTTP request logs from httpx/httpcore

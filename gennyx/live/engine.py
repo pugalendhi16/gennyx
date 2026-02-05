@@ -163,6 +163,9 @@ class LiveTradingEngine:
             self._bootstrap_data()
 
         # Initialize session mode (auto switches between RTH and Overnight)
+        now_et = datetime.now(self.tz)
+        logger.info(f"Current ET time: {now_et.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+
         if self.config.session_type == "auto":
             session = self._get_current_session()
             self._apply_session_config(session)

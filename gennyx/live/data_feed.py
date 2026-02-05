@@ -5,7 +5,7 @@ import logging
 import os
 import tempfile
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -39,7 +39,7 @@ class Quote:
             bid_size=quote_data.get("bidSize", 0),
             ask_size=quote_data.get("askSize", 0),
             volume=quote_data.get("totalVolume", 0),
-            timestamp=datetime.now(),
+            timestamp=datetime.now(timezone.utc),
         )
 
 

@@ -96,7 +96,7 @@ class Config:
     database_url: str = None
 
     # UT Bot Settings
-    ut_sensitivity: float = 3.0
+    ut_sensitivity: float = 3.5
     ut_atr_period: int = 10
     use_heikin_ashi: bool = False
 
@@ -149,7 +149,7 @@ class Config:
     poll_interval: int = 30
     save_interval: int = 60
     simple_mode: bool = False
-    session_type: str = "auto"
+    session_type: str = "overnight"
 
     # Logging
     log_level: str = "INFO"
@@ -199,7 +199,7 @@ class Config:
             database_url=database_url,
 
             # Strategy settings (with defaults)
-            ut_sensitivity=get_env_float("UT_SENSITIVITY", 3.0),
+            ut_sensitivity=get_env_float("UT_SENSITIVITY", 3.5),
             ut_atr_period=get_env_int("UT_ATR_PERIOD", 10),
             st_atr_period=get_env_int("ST_ATR_PERIOD", 8),
             st_multiplier=get_env_float("ST_MULTIPLIER", 2.5),
@@ -216,7 +216,7 @@ class Config:
             # Session settings
             trading_start=get_env("TRADING_START", "09:30"),
             trading_end=get_env("TRADING_END", "16:00"),
-            session_type=get_env("SESSION_TYPE", "auto"),
+            session_type=get_env("SESSION_TYPE", "overnight"),
             simple_mode=get_env_bool("SIMPLE_MODE", False),
 
             # Polling

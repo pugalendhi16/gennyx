@@ -42,7 +42,7 @@ BASE_CONFIG = {
     "symbol": "NQ=F",
     "days": 60,
     # UT Bot
-    "ut_sensitivity": 3.0,
+    "ut_sensitivity": 3.5,
     "ut_atr_period": 10,
     # Supertrend
     "st_atr_period": 8,
@@ -693,25 +693,11 @@ def main():
         print(f"ERROR: Not enough 5m data. Need {cfg['warmup_bars'] + 50}, got {len(df_5m_raw)}.")
         sys.exit(1)
 
-    # 2. Compute indicators for each session
+    # 2. Compute indicators (overnight only)
     all_trades: list[Trade] = []
+    rth_trades, rth_curve = [], []
 
-    # --- RTH: regular candles, full MTF filtered ---
-    print("\n--- RTH Session (Full MTF Filtered) ---")
-    rth_cfg = {**cfg, **SESSION_CONFIGS["rth"]}
-
-    print("  Computing indicators (regular candles) ...", end=" ", flush=True)
-    t0 = time.time()
-    df_5m_rth = add_indicators(df_5m_raw, rth_cfg)
-    df_1h_rth = add_indicators(df_1h_raw, rth_cfg)
-    htf_rth = align_htf(df_5m_rth, df_1h_rth)
-    print(f"done ({time.time() - t0:.1f}s)")
-
-    print("  Running backtest ...", end=" ", flush=True)
-    t0 = time.time()
-    rth_trades, rth_curve = run_backtest(df_5m_rth, htf_rth, rth_cfg, "rth")
-    print(f"done ({time.time() - t0:.1f}s) -- {len(rth_trades)} trades")
-    all_trades.extend(rth_trades)
+    print("\n--- RTH Session: DISABLED ---")
 
     # --- Overnight: Heikin-Ashi candles, simple UT Bot ---
     print("\n--- Overnight Session (Simple UT Bot + Heikin-Ashi) ---")
@@ -730,33 +716,16 @@ def main():
     print(f"done ({time.time() - t0:.1f}s) -- {len(ovn_trades)} trades")
     all_trades.extend(ovn_trades)
 
-    # --- Combined metrics ---
-    combined_trades = sorted(all_trades, key=lambda t: t.entry_time)
-
-    # Build combined equity curve by merging
-    combined_eq = sorted(rth_curve + ovn_curve, key=lambda x: x[0])
-
-    # 3. Calculate metrics
-    rth_m = calc_metrics(rth_trades, rth_curve, cap)
+    # --- Metrics ---
     ovn_m = calc_metrics(ovn_trades, ovn_curve, cap)
-    both_m = calc_metrics(combined_trades, combined_eq, cap)
 
-    # Override combined totals (simple sum for trades/wins/pnl)
-    both_m["total_trades"] = rth_m["total_trades"] + ovn_m["total_trades"]
-    both_m["winning_trades"] = rth_m["winning_trades"] + ovn_m["winning_trades"]
-    both_m["total_pnl"] = rth_m["total_pnl"] + ovn_m["total_pnl"]
-    both_m["total_return"] = both_m["total_pnl"] / cap * 100
-    both_m["win_rate"] = (both_m["winning_trades"] / both_m["total_trades"] * 100
-                          if both_m["total_trades"] > 0 else 0)
-
-    # 4. Output
-    print_comparison_table(rth_m, ovn_m, both_m)
+    # 3. Output
+    print_session_results(ovn_m, "Overnight Only (sens=%.1f)" % cfg["ut_sensitivity"])
     print_monthly_breakdown(all_trades, cap)
-    print_trades(rth_trades, "RTH Trades")
     print_trades(ovn_trades, "Overnight Trades")
 
-    # 5. Equity curve
-    plot_equity(rth_curve, ovn_curve, combined_eq, cap)
+    # 4. Equity curve
+    plot_equity(rth_curve, ovn_curve, ovn_curve, cap)
 
     # 6. Export trades CSV
     results_dir = Path(__file__).resolve().parent.parent / "results"
@@ -771,7 +740,7 @@ def main():
         "entry_reason": t.entry_reason,
         "exit_reason": t.exit_reason,
         "session": t.session,
-    } for t in combined_trades])
+    } for t in all_trades])
     trades_file = results_dir / "trades_combined_60d.csv"
     trades_df.to_csv(trades_file, index=False)
     print(f"\nTrades exported to {trades_file}")
@@ -779,5 +748,53 @@ def main():
     print("\nBacktest complete.")
 
 
+def sweep_sensitivity():
+    """Run backtest across multiple UT Bot sensitivity values (overnight only)."""
+    sensitivities = [3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0]
+    cfg = BASE_CONFIG.copy()
+    cap = cfg["initial_capital"]
+
+    print("=" * 90)
+    print(f"{'UT Bot Sensitivity Sweep -- Overnight Only (Intrabar Stops)':^90}")
+    print("=" * 90)
+
+    # Fetch data once
+    df_5m_raw, df_1h_raw = fetch_data(cfg["symbol"], cfg["days"])
+    print(f"  5m bars: {len(df_5m_raw):,}  |  1h bars: {len(df_1h_raw):,}\n")
+
+    results = []
+    for sens in sensitivities:
+        cfg_run = {**cfg, **SESSION_CONFIGS["overnight"]}
+        cfg_run["ut_sensitivity"] = sens
+
+        df_5m = add_indicators(df_5m_raw, cfg_run)
+        df_1h = add_indicators(df_1h_raw, cfg_run)
+        htf = align_htf(df_5m, df_1h)
+
+        trades, curve = run_backtest(df_5m, htf, cfg_run, "overnight")
+        m = calc_metrics(trades, curve, cap)
+        m["sensitivity"] = sens
+        results.append(m)
+        print(f"  sens={sens:.1f}  trades={m['total_trades']:>4}  "
+              f"wr={m['win_rate']:>5.1f}%  pnl=${m['total_pnl']:>+10,.2f}  "
+              f"pf={m['profit_factor']:>5.2f}  dd={m['max_dd_pct']:>5.1f}%  "
+              f"sharpe={m['sharpe']:>+5.2f}")
+
+    # Summary table
+    print(f"\n{'=' * 90}")
+    print(f"{'Sens':>6} {'Trades':>7} {'Wins':>6} {'Win%':>7} {'PnL':>12} "
+          f"{'PF':>6} {'AvgWin':>9} {'AvgLoss':>9} {'MaxDD%':>7} {'Sharpe':>7}")
+    print("-" * 90)
+    for m in results:
+        print(f"{m['sensitivity']:>6.1f} {m['total_trades']:>7} {m['winning_trades']:>6} "
+              f"{m['win_rate']:>6.1f}% ${m['total_pnl']:>+10,.2f} "
+              f"{m['profit_factor']:>6.2f} ${m['avg_winner']:>+8,.2f} ${m['avg_loser']:>+8,.2f} "
+              f"{m['max_dd_pct']:>6.1f}% {m['sharpe']:>+7.2f}")
+    print("=" * 90)
+
+
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 1 and sys.argv[1] == "sweep":
+        sweep_sensitivity()
+    else:
+        main()

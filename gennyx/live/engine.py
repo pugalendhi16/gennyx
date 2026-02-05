@@ -170,7 +170,7 @@ class LiveTradingEngine:
             session = self._get_current_session()
             self._apply_session_config(session)
         else:
-            self._current_session = self.config.session_type
+            self._apply_session_config(self.config.session_type)
             logger.info(f"Fixed session: {self._current_session}")
             logger.info(f"Trading Hours: {self.config.trading_start} - {self.config.trading_end} ET")
             logger.info(f"Simple Mode: {self.config.simple_mode}")

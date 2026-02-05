@@ -149,7 +149,7 @@ class LiveSignalGenerator:
 
         idx = self._primary_df.index[-1]
         row = self._primary_df.iloc[-1]
-        price = row["close"]
+        price = float(row["close"])
 
         # Check trading hours
         if not self.hours_filter.is_trading_hours(idx):
@@ -175,17 +175,17 @@ class LiveSignalGenerator:
             return LiveSignal(
                 timestamp=idx.to_pydatetime() if hasattr(idx, 'to_pydatetime') else idx,
                 signal_type="none",
-                price=price,
+                price=float(price),
                 reason="No UT Bot buy signal",
             )
 
-        atr = row.get("atr", 0)
-        stop_loss = price - (self.config.hard_stop_atr_mult * atr) if atr > 0 else price - 10
+        atr = float(row.get("atr", 0))
+        stop_loss = float(price - (self.config.hard_stop_atr_mult * atr)) if atr > 0 else float(price - 10)
 
         return LiveSignal(
             timestamp=idx.to_pydatetime() if hasattr(idx, 'to_pydatetime') else idx,
             signal_type="entry_long",
-            price=price,
+            price=float(price),
             stop_loss=stop_loss,
             atr=atr,
             reason="Long entry: UT Bot buy signal",
@@ -200,7 +200,7 @@ class LiveSignalGenerator:
             return LiveSignal(
                 timestamp=timestamp,
                 signal_type="none",
-                price=price,
+                price=float(price),
                 reason="HTF bias not bullish",
             )
 
@@ -210,7 +210,7 @@ class LiveSignalGenerator:
             return LiveSignal(
                 timestamp=timestamp,
                 signal_type="none",
-                price=price,
+                price=float(price),
                 reason="No UT Bot buy signal",
             )
 
@@ -224,23 +224,23 @@ class LiveSignalGenerator:
                 return LiveSignal(
                     timestamp=timestamp,
                     signal_type="none",
-                    price=price,
+                    price=float(price),
                     reason="Ranging market detected",
                 )
             return LiveSignal(
                 timestamp=timestamp,
                 signal_type="none",
-                price=price,
+                price=float(price),
                 reason="No trend confirmation",
             )
 
-        atr = row.get("atr", 0)
-        stop_loss = price - (self.config.hard_stop_atr_mult * atr) if atr > 0 else price - 10
+        atr = float(row.get("atr", 0))
+        stop_loss = float(price - (self.config.hard_stop_atr_mult * atr)) if atr > 0 else float(price - 10)
 
         return LiveSignal(
             timestamp=timestamp,
             signal_type="entry_long",
-            price=price,
+            price=float(price),
             stop_loss=stop_loss,
             atr=atr,
             reason="Long entry: UT Bot signal, bullish HTF bias",
@@ -263,7 +263,7 @@ class LiveSignalGenerator:
 
         idx = self._primary_df.index[-1]
         row = self._primary_df.iloc[-1]
-        price = current_price if current_price is not None else row["close"]
+        price = float(current_price if current_price is not None else row["close"])
         timestamp = idx.to_pydatetime() if hasattr(idx, 'to_pydatetime') else idx
 
         # Exit: End of trading session
@@ -286,7 +286,7 @@ class LiveSignalGenerator:
             )
 
         # Exit: Price below UT Bot trailing stop
-        ut_stop = row.get("ut_trailing_stop", 0)
+        ut_stop = float(row.get("ut_trailing_stop", 0))
         if ut_stop > 0 and price < ut_stop:
             return LiveSignal(
                 timestamp=timestamp,

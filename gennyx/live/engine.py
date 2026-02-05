@@ -105,7 +105,7 @@ class LiveTradingEngine:
         # Recalculate indicators (Heikin-Ashi setting affects UT Bot)
         self._update_signal_generator()
 
-    def _check_session_transition(self, quote: Quote) -> bool:
+    def _check_session_transition(self, quote: Quote, bar_close_price: float) -> bool:
         """Check if session has changed and handle transition."""
         if self.config.session_type != "auto":
             return False
@@ -118,16 +118,16 @@ class LiveTradingEngine:
             f"SESSION TRANSITION: {self._current_session} -> {new_session}"
         )
 
-        # Force exit any open position before switching
+        # Force exit any open position before switching (at candle close price)
         if self.paper_trader.has_position():
             logger.info("Force-closing position for session transition")
             exit_signal = LiveSignal(
                 timestamp=datetime.now(self.tz),
                 signal_type="exit_long",
-                price=quote.last_price,
+                price=bar_close_price,
                 reason=f"Session transition: {self._current_session} -> {new_session}",
             )
-            self._execute_exit(exit_signal, quote)
+            self._execute_exit(exit_signal, bar_close_price)
 
         self._apply_session_config(new_session)
         return True
@@ -268,7 +268,9 @@ class LiveTradingEngine:
             return None
 
     def _on_bar_close(self, completed_candle, quote: Quote):
-        """Handle bar close event."""
+        """Handle bar close event. All entry/exit uses candle close price."""
+        bar_close_price = completed_candle.close
+
         logger.info(
             f"Bar close [{self._current_session}]: {completed_candle.timestamp} | "
             f"O:{completed_candle.open:.2f} H:{completed_candle.high:.2f} "
@@ -278,7 +280,7 @@ class LiveTradingEngine:
         self._last_bar_time = completed_candle.timestamp
 
         # Check session transition first (auto mode only)
-        session_changed = self._check_session_transition(quote)
+        session_changed = self._check_session_transition(quote, bar_close_price)
 
         # Update indicators (skip if session change already did it)
         if not session_changed:
@@ -286,7 +288,7 @@ class LiveTradingEngine:
 
         # Check exit first if in position
         if self.paper_trader.has_position():
-            self._check_exit_conditions(quote)
+            self._check_exit_conditions(bar_close_price)
 
         # Check entry if not in position
         if not self.paper_trader.has_position():
@@ -294,10 +296,10 @@ class LiveTradingEngine:
 
             if signal.signal_type == "entry_long":
                 logger.info(f"ENTRY SIGNAL: {signal.reason}")
-                self._execute_entry(signal, quote)
+                self._execute_entry(signal, bar_close_price)
 
-    def _check_exit_conditions(self, quote: Quote):
-        """Check exit conditions."""
+    def _check_exit_conditions(self, price: float):
+        """Check exit conditions using candle close price."""
         if not self.paper_trader.has_position():
             return
 
@@ -305,17 +307,17 @@ class LiveTradingEngine:
         signal = self.signal_generator.check_exit(
             entry_price=pos.entry_price,
             entry_atr=pos.entry_atr,
-            current_price=quote.last_price,
+            current_price=price,
         )
 
         if signal.signal_type == "exit_long":
             logger.info(f"EXIT SIGNAL: {signal.reason}")
-            self._execute_exit(signal, quote)
+            self._execute_exit(signal, price)
 
-    def _execute_entry(self, signal, quote: Quote):
-        """Execute a paper entry."""
+    def _execute_entry(self, signal, price: float):
+        """Execute a paper entry at candle close price."""
         position = self.paper_trader.enter_position(
-            price=quote.last_price,
+            price=price,
             stop_loss=signal.stop_loss,
             atr=signal.atr,
             reason=signal.reason,
@@ -324,7 +326,7 @@ class LiveTradingEngine:
 
         if position:
             logger.info(
-                f"ENTERED LONG: {position.quantity} contracts @ ${quote.last_price:.2f} | "
+                f"ENTERED LONG: {position.quantity} contracts @ ${price:.2f} | "
                 f"Stop: ${signal.stop_loss:.2f}"
             )
 
@@ -332,7 +334,7 @@ class LiveTradingEngine:
             signal_record = {
                 "timestamp": signal.timestamp.isoformat() if signal.timestamp else datetime.now().isoformat(),
                 "signal_type": "entry_long",
-                "price": quote.last_price,
+                "price": price,
                 "stop_loss": signal.stop_loss,
                 "atr": signal.atr,
                 "reason": signal.reason,
@@ -342,22 +344,22 @@ class LiveTradingEngine:
 
             self._save_state()
 
-    def _execute_exit(self, signal, quote: Quote):
-        """Execute a paper exit."""
+    def _execute_exit(self, signal, price: float):
+        """Execute a paper exit at candle close price."""
         # Get position info before exit for trade record
         pos = self.paper_trader.current_position
         entry_atr = pos.entry_atr if pos else None
         stop_loss = pos.stop_loss if pos else None
 
         trade = self.paper_trader.exit_position(
-            price=quote.last_price,
+            price=price,
             reason=signal.reason,
             timestamp=signal.timestamp,
         )
 
         if trade:
             logger.info(
-                f"EXITED LONG: {trade.quantity} contracts @ ${quote.last_price:.2f} | "
+                f"EXITED LONG: {trade.quantity} contracts @ ${price:.2f} | "
                 f"P&L: ${trade.pnl:+.2f} ({trade.pnl_percent:+.2%})"
             )
 
@@ -397,7 +399,7 @@ class LiveTradingEngine:
             exit_signal_record = {
                 "timestamp": signal.timestamp.isoformat() if signal.timestamp else datetime.now().isoformat(),
                 "signal_type": "exit_long",
-                "price": quote.last_price,
+                "price": price,
                 "stop_loss": stop_loss,
                 "atr": entry_atr,
                 "reason": signal.reason,

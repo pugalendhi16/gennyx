@@ -414,8 +414,8 @@ class StatePersistence:
                         trade_count = EXCLUDED.trade_count,
                         winning_trades = EXCLUDED.winning_trades,
                         losing_trades = EXCLUDED.losing_trades,
-                        largest_win = EXCLUDED.largest_win,
-                        largest_loss = EXCLUDED.largest_loss,
+                        largest_win = GREATEST(daily_stats.largest_win, EXCLUDED.largest_win),
+                        largest_loss = LEAST(daily_stats.largest_loss, EXCLUDED.largest_loss),
                         updated_at = CURRENT_TIMESTAMP
                 """, (
                     stats.get("date"),

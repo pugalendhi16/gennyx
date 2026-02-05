@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """Create database tables for GenNyx trading system."""
 
+import os
+
 import psycopg2
 
-DATABASE_URL = "postgresql://neondb_owner:npg_Xxz6nJLTpeB3@ep-misty-art-ahzc67o1-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require"
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    "postgresql://neondb_owner:npg_Xxz6nJLTpeB3@ep-blue-smoke-ah94a4rs-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require",
+)
 
 SCHEMA_SQL = """
 -- ============================================
@@ -145,6 +150,27 @@ CREATE TABLE IF NOT EXISTS performance_metrics (
 );
 
 CREATE INDEX IF NOT EXISTS idx_perf_metrics_period ON performance_metrics(period_type, period_start);
+
+-- 9. Candle Signals - OHLC bars with UT Bot signal status
+CREATE TABLE IF NOT EXISTS candle_signals (
+    id SERIAL PRIMARY KEY,
+    symbol VARCHAR(20) NOT NULL DEFAULT '/MNQ',
+    timestamp TIMESTAMP NOT NULL,
+    open DECIMAL(12, 4) NOT NULL,
+    high DECIMAL(12, 4) NOT NULL,
+    low DECIMAL(12, 4) NOT NULL,
+    close DECIMAL(12, 4) NOT NULL,
+    volume BIGINT,
+    ut_signal VARCHAR(10) NOT NULL DEFAULT 'NONE',  -- 'BUY', 'SELL', 'NONE'
+    ut_trend INTEGER,                                -- 1 (up) or -1 (down)
+    ut_trailing_stop DECIMAL(12, 4),
+    atr DECIMAL(10, 4),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(symbol, timestamp)
+);
+
+CREATE INDEX IF NOT EXISTS idx_candle_signals_time ON candle_signals(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_candle_signals_signal ON candle_signals(ut_signal);
 """
 
 def create_tables():

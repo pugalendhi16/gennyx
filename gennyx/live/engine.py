@@ -289,6 +289,27 @@ class LiveTradingEngine:
         if not session_changed:
             self._update_signal_generator()
 
+        # Save candle + UT Bot signal to DB
+        indicators = self.signal_generator.get_current_indicators()
+        ut_signal = "BUY" if indicators.get("ut_buy_signal") else (
+            "SELL" if indicators.get("ut_sell_signal") else "NONE"
+        )
+        ut_trend = indicators.get("ut_trend")
+        ut_trailing_stop = indicators.get("ut_trailing_stop")
+        atr_val = indicators.get("atr")
+        self.state_manager.save_candle_signal({
+            "timestamp": completed_candle.timestamp,
+            "open": float(completed_candle.open),
+            "high": float(completed_candle.high),
+            "low": float(completed_candle.low),
+            "close": float(completed_candle.close),
+            "volume": completed_candle.volume,
+            "ut_signal": ut_signal,
+            "ut_trend": int(ut_trend) if ut_trend is not None else None,
+            "ut_trailing_stop": float(ut_trailing_stop) if ut_trailing_stop is not None else None,
+            "atr": float(atr_val) if atr_val is not None else None,
+        }, symbol=self.config.schwab_symbol)
+
         # Check exit first if in position
         if self.paper_trader.has_position():
             self._check_exit_conditions(bar_close_price)

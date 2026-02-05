@@ -103,6 +103,26 @@ class StatePersistence:
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS candle_signals (
+                        id SERIAL PRIMARY KEY,
+                        symbol VARCHAR(20) NOT NULL DEFAULT '/MNQ',
+                        timestamp TIMESTAMP NOT NULL,
+                        open DECIMAL(12, 4) NOT NULL,
+                        high DECIMAL(12, 4) NOT NULL,
+                        low DECIMAL(12, 4) NOT NULL,
+                        close DECIMAL(12, 4) NOT NULL,
+                        volume BIGINT,
+                        ut_signal VARCHAR(10) NOT NULL DEFAULT 'NONE',
+                        ut_trend INTEGER,
+                        ut_trailing_stop DECIMAL(12, 4),
+                        atr DECIMAL(10, 4),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE(symbol, timestamp)
+                    )
+                """)
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_candle_signals_time ON candle_signals(timestamp DESC)")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_candle_signals_signal ON candle_signals(ut_signal)")
                 conn.commit()
             logger.info("Database initialized successfully")
         except Exception as e:
@@ -380,6 +400,65 @@ class StatePersistence:
 
         except Exception as e:
             logger.error(f"Failed to save signal: {e}")
+            self._reset_connection()
+            return False
+
+    def save_candle_signal(self, candle: Dict[str, Any], symbol: str = "/MNQ") -> bool:
+        """
+        Save a completed candle with its UT Bot signal to candle_signals table.
+
+        Uses UPSERT to handle duplicate timestamps gracefully.
+
+        Args:
+            candle: Dict with timestamp, open, high, low, close, volume,
+                    ut_signal, ut_trend, ut_trailing_stop, atr
+            symbol: Trading symbol
+
+        Returns:
+            True if save successful
+        """
+        if not self.database_url:
+            return False
+
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO candle_signals (
+                        symbol, timestamp, open, high, low, close, volume,
+                        ut_signal, ut_trend, ut_trailing_stop, atr
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (symbol, timestamp)
+                    DO UPDATE SET
+                        open = EXCLUDED.open,
+                        high = EXCLUDED.high,
+                        low = EXCLUDED.low,
+                        close = EXCLUDED.close,
+                        volume = EXCLUDED.volume,
+                        ut_signal = EXCLUDED.ut_signal,
+                        ut_trend = EXCLUDED.ut_trend,
+                        ut_trailing_stop = EXCLUDED.ut_trailing_stop,
+                        atr = EXCLUDED.atr
+                """, (
+                    symbol,
+                    candle.get("timestamp"),
+                    candle.get("open"),
+                    candle.get("high"),
+                    candle.get("low"),
+                    candle.get("close"),
+                    candle.get("volume"),
+                    candle.get("ut_signal", "NONE"),
+                    candle.get("ut_trend"),
+                    candle.get("ut_trailing_stop"),
+                    candle.get("atr"),
+                ))
+                conn.commit()
+
+            logger.debug(f"Candle signal saved: {candle.get('timestamp')} {candle.get('ut_signal')}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to save candle signal: {e}")
             self._reset_connection()
             return False
 

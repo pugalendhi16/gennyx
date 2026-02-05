@@ -321,6 +321,8 @@ class LiveSignalGenerator:
         return {
             "ut_trailing_stop": row.get("ut_trailing_stop"),
             "ut_trend": row.get("ut_trend"),
+            "ut_buy_signal": row.get("ut_buy_signal"),
+            "ut_sell_signal": row.get("ut_sell_signal"),
             "st_direction": row.get("st_direction"),
             "adx": row.get("adx"),
             "ema_bullish_aligned": row.get("ema_bullish_aligned"),

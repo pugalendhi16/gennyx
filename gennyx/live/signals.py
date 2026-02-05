@@ -100,6 +100,7 @@ class LiveSignalGenerator:
             sensitivity=self.config.ut_sensitivity,
             atr_period=self.config.ut_atr_period,
             use_heikin_ashi=self.config.use_heikin_ashi,
+            use_ha_atr=getattr(self.config, 'use_ha_atr', None),
         )
         result = pd.concat([result, ut_bot], axis=1)
 

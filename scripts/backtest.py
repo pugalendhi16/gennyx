@@ -75,13 +75,15 @@ SESSION_CONFIGS = {
     "rth": {
         "trading_start": "09:30",
         "trading_end": "16:00",
-        "use_heikin_ashi": False,
+        "use_heikin_ashi": True,
+        "use_ha_atr": True,   # RTH: HA candles + HA ATR
         "simple_mode": False,
     },
     "overnight": {
         "trading_start": "16:00",
         "trading_end": "09:30",
         "use_heikin_ashi": True,
+        "use_ha_atr": False,  # Overnight: HA candles + Raw ATR
         "simple_mode": True,
     },
 }
@@ -174,7 +176,8 @@ def add_indicators(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
 
     ut = ut_bot_alert(result, sensitivity=cfg["ut_sensitivity"],
                       atr_period=cfg["ut_atr_period"],
-                      use_heikin_ashi=cfg.get("use_heikin_ashi", False))
+                      use_heikin_ashi=cfg.get("use_heikin_ashi", False),
+                      use_ha_atr=cfg.get("use_ha_atr", None))
     result = pd.concat([result, ut], axis=1)
 
     st = supertrend(result, atr_period=cfg["st_atr_period"],
@@ -793,8 +796,186 @@ def sweep_sensitivity():
     print("=" * 90)
 
 
+def compare_atr_modes():
+    """Compare HA ATR vs Raw ATR backtest results side-by-side."""
+    cfg = BASE_CONFIG.copy()
+    cap = cfg["initial_capital"]
+
+    w = 90
+    print("=" * w)
+    print(f"{'HA ATR vs Raw ATR Comparison -- Overnight Session':^{w}}")
+    print("=" * w)
+    print(f"  Symbol:           {cfg['symbol']} (MNQ specs)")
+    print(f"  Initial Capital:  ${cap:,.2f}")
+    print(f"  UT Sensitivity:   {cfg['ut_sensitivity']}")
+    print(f"  ATR Period:       {cfg['ut_atr_period']}")
+    print()
+
+    # Fetch data once
+    df_5m_raw, df_1h_raw = fetch_data(cfg["symbol"], cfg["days"])
+    print(f"  5m bars: {len(df_5m_raw):,}  |  1h bars: {len(df_1h_raw):,}\n")
+
+    modes = [
+        ("HA ATR (TOS match)", True),
+        ("Raw ATR (original)", False),
+    ]
+
+    results = {}
+    all_trades = {}
+    all_curves = {}
+
+    for label, ha_atr in modes:
+        ovn_cfg = {**cfg, **SESSION_CONFIGS["overnight"], "use_ha_atr": ha_atr}
+
+        print(f"  Running: {label} ...", end=" ", flush=True)
+        t0 = time.time()
+        df_5m = add_indicators(df_5m_raw, ovn_cfg)
+        df_1h = add_indicators(df_1h_raw, ovn_cfg)
+        htf = align_htf(df_5m, df_1h)
+        trades, curve = run_backtest(df_5m, htf, ovn_cfg, "overnight")
+        m = calc_metrics(trades, curve, cap)
+        elapsed = time.time() - t0
+        print(f"done ({elapsed:.1f}s) -- {len(trades)} trades")
+
+        results[label] = m
+        all_trades[label] = trades
+        all_curves[label] = curve
+
+    # Comparison table
+    labels = list(results.keys())
+    m1, m2 = results[labels[0]], results[labels[1]]
+
+    rows = [
+        ("Total Trades",       "int",  "total_trades"),
+        ("Winning Trades",     "int",  "winning_trades"),
+        ("Win Rate",            "pct",  "win_rate"),
+        ("Total P&L",           "$",    "total_pnl"),
+        ("Total Return",        "%",    "total_return"),
+        ("Profit Factor",       "f2",   "profit_factor"),
+        ("Avg Trade P&L",       "$",    "avg_trade"),
+        ("Avg Winner",          "$",    "avg_winner"),
+        ("Avg Loser",           "$",    "avg_loser"),
+        ("Largest Win",         "$",    "largest_win"),
+        ("Largest Loss",        "$",    "largest_loss"),
+        ("Max Drawdown",        "dd",   "max_dd"),
+        ("Max Drawdown %",      "pct",  "max_dd_pct"),
+        ("Sharpe Ratio",        "f2",   "sharpe"),
+        ("Avg Holding Time",    "hrs",  "avg_hold_hrs"),
+        ("Max Consec. Wins",    "int",  "max_consec_wins"),
+        ("Max Consec. Losses",  "int",  "max_consec_losses"),
+    ]
+
+    print(f"\n{'=' * w}")
+    print(f"{'COMPARISON: HA ATR vs Raw ATR':^{w}}")
+    print(f"{'=' * w}")
+    print(f"{'Metric':<24} {'HA ATR (TOS match)':>22} {'Raw ATR (original)':>22} {'Difference':>20}")
+    print("-" * w)
+
+    for name, kind, key in rows:
+        v1 = m1[key]
+        v2 = m2[key]
+        s1 = fmt(v1, kind)
+        s2 = fmt(v2, kind)
+        # Compute difference
+        diff = v1 - v2
+        if kind == "$":
+            sdiff = f"${diff:+,.2f}"
+        elif kind in ("%", "pct"):
+            sdiff = f"{diff:+.1f}%"
+        elif kind == "f2":
+            sdiff = f"{diff:+.2f}"
+        elif kind == "hrs":
+            sdiff = f"{diff:+.1f}h"
+        elif kind == "dd":
+            sdiff = f"${diff:+,.2f}"
+        elif kind == "int":
+            sdiff = f"{diff:+.0f}"
+        else:
+            sdiff = f"{diff:+.2f}"
+        print(f"{name:<24} {s1:>22} {s2:>22} {sdiff:>20}")
+
+    print("=" * w)
+
+    # Monthly breakdown per mode
+    for label in labels:
+        trades = all_trades[label]
+        if not trades:
+            continue
+        df = pd.DataFrame([{
+            "session": t.session,
+            "entry_time": t.entry_time,
+            "pnl": t.pnl,
+        } for t in trades])
+        df["entry_time"] = pd.to_datetime(df["entry_time"])
+        df["month"] = df["entry_time"].dt.to_period("M")
+
+        print(f"\n  {label} -- Monthly")
+        print(f"  {'Period':<15} {'Trades':>8} {'Wins':>8} {'Win Rate':>10} {'P&L':>14} {'Return':>10}")
+        print("  " + "-" * 68)
+        for month, group in sorted(df.groupby("month")):
+            t = len(group)
+            wins = len(group[group["pnl"] > 0])
+            pnl = group["pnl"].sum()
+            wr = wins / t if t > 0 else 0
+            print(f"  {month.strftime('%b %Y'):<15} {t:>8} {wins:>8} {wr:>9.1%} ${pnl:>12,.2f} {pnl/cap:>9.1%}")
+
+    # Equity curve with both modes
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        fig, axes = plt.subplots(2, 1, figsize=(14, 8), sharex=True)
+
+        colors = {"HA ATR (TOS match)": "royalblue", "Raw ATR (original)": "darkorange"}
+        for label in labels:
+            curve = all_curves[label]
+            if not curve:
+                continue
+            ts, eq = zip(*curve)
+            axes[0].plot(ts, eq, label=label, color=colors[label], linewidth=0.8)
+
+        axes[0].axhline(y=cap, color="gray", linestyle="--", alpha=0.5)
+        axes[0].set_ylabel("Equity ($)")
+        axes[0].set_title("HA ATR vs Raw ATR -- Overnight Session (UT Bot Heikin-Ashi)")
+        axes[0].legend(loc="upper left")
+        axes[0].grid(True, alpha=0.3)
+
+        for label in labels:
+            curve = all_curves[label]
+            if not curve:
+                continue
+            ts, equities = zip(*curve)
+            peak = equities[0]
+            dd = []
+            for eq in equities:
+                if eq > peak:
+                    peak = eq
+                dd.append((peak - eq) / peak * 100 if peak > 0 else 0)
+            axes[1].fill_between(ts, dd, alpha=0.15, color=colors[label])
+            axes[1].plot(ts, dd, color=colors[label], linewidth=0.6, label=label)
+
+        axes[1].set_ylabel("Drawdown (%)")
+        axes[1].set_xlabel("Date")
+        axes[1].legend(loc="upper left")
+        axes[1].grid(True, alpha=0.3)
+        axes[1].invert_yaxis()
+
+        plt.tight_layout()
+        out_path = Path(__file__).resolve().parent.parent / "backtest_atr_compare.png"
+        plt.savefig(out_path, dpi=150)
+        print(f"\nComparison chart saved to {out_path}")
+        plt.close()
+    except ImportError:
+        print("\nmatplotlib not installed -- skipping chart.")
+
+    print("\nComparison complete.")
+
+
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "sweep":
         sweep_sensitivity()
+    elif len(sys.argv) > 1 and sys.argv[1] == "compare":
+        compare_atr_modes()
     else:
         main()

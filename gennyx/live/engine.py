@@ -82,19 +82,21 @@ class LiveTradingEngine:
         """Apply session-specific configuration and recalculate indicators."""
         if session == "rth":
             self.config.simple_mode = False
-            self.config.use_heikin_ashi = False
+            self.config.use_heikin_ashi = True
+            self.config.use_ha_atr = True
             self.config.trading_start = "09:30"
             self.config.trading_end = "16:00"
             logger.info(
-                "Session: RTH (Full MTF filtered, regular candles, 09:30-16:00)"
+                "Session: RTH (Full MTF filtered, HA candles, HA ATR, 09:30-16:00)"
             )
         else:
             self.config.simple_mode = True
             self.config.use_heikin_ashi = True
+            self.config.use_ha_atr = False
             self.config.trading_start = "16:00"
             self.config.trading_end = "09:30"
             logger.info(
-                "Session: Overnight (Simple UT Bot, Heikin-Ashi, 16:00-09:30)"
+                "Session: Overnight (Simple UT Bot, HA candles, Raw ATR, 16:00-09:30)"
             )
 
         self._current_session = session
@@ -484,7 +486,8 @@ class LiveTradingEngine:
         logger.info("-" * 60)
         logger.info("Status:")
         logger.info(f"  Session: {self._current_session or 'N/A'} (mode: {self.config.session_type})")
-        logger.info(f"  Simple Mode: {self.config.simple_mode} | Heikin-Ashi: {self.config.use_heikin_ashi}")
+        atr_mode = "HA ATR" if self.config.use_ha_atr else "Raw ATR"
+        logger.info(f"  Simple Mode: {self.config.simple_mode} | Heikin-Ashi: {self.config.use_heikin_ashi} | ATR: {atr_mode}")
         logger.info(f"  Capital: ${self.paper_trader.capital:,.2f}")
         logger.info(f"  Position: {'Yes' if self.paper_trader.has_position() else 'No'}")
 

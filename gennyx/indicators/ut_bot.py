@@ -28,6 +28,7 @@ def ut_bot_alert(
     sensitivity: float = 1.2,
     atr_period: int = 10,
     use_heikin_ashi: bool = False,
+    use_ha_atr: bool = None,
 ) -> pd.DataFrame:
     """
     UT Bot Alert indicator (QuantNomad TradingView version).
@@ -41,6 +42,7 @@ def ut_bot_alert(
         sensitivity: ATR multiplier for trailing stop distance (key parameter)
         atr_period: Period for ATR calculation
         use_heikin_ashi: Whether to use Heikin-Ashi source for calculations
+        use_ha_atr: Whether ATR uses HA OHLC (None = follow use_heikin_ashi)
 
     Returns:
         DataFrame with columns:
@@ -49,6 +51,9 @@ def ut_bot_alert(
         - ut_sell_signal: Boolean sell signal
         - ut_trend: 1 for uptrend, -1 for downtrend
     """
+    if use_ha_atr is None:
+        use_ha_atr = use_heikin_ashi
+
     result = pd.DataFrame(index=df.index)
 
     # Use Heikin-Ashi if specified (matches TOS: ATR also uses HA OHLC)
@@ -59,7 +64,10 @@ def ut_bot_alert(
         ha_high = pd.concat([df["high"], ha_open, ha_close], axis=1).max(axis=1)
         ha_low = pd.concat([df["low"], ha_open, ha_close], axis=1).min(axis=1)
         src = ha_close
-        atr_high, atr_low, atr_close = ha_high, ha_low, ha_close
+        if use_ha_atr:
+            atr_high, atr_low, atr_close = ha_high, ha_low, ha_close
+        else:
+            atr_high, atr_low, atr_close = df["high"], df["low"], df["close"]
     else:
         src = df["close"].copy()
         atr_high, atr_low, atr_close = df["high"], df["low"], df["close"]

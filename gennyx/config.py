@@ -99,6 +99,7 @@ class Config:
     ut_sensitivity: float = 3.5
     ut_atr_period: int = 10
     use_heikin_ashi: bool = False
+    use_ha_atr: bool = None  # None = follow use_heikin_ashi; True/False = override
 
     # Supertrend Settings
     st_atr_period: int = 8

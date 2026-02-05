@@ -11,7 +11,7 @@ import pytz
 
 from .data_feed import SchwabDataFeed, Quote
 from .candle_builder import LiveDataBuilder
-from .signals import LiveSignalGenerator
+from .signals import LiveSignalGenerator, LiveSignal
 from .paper_trader import PaperTradeManager
 from .state_manager import StatePersistence
 
@@ -54,6 +54,7 @@ class LiveTradingEngine:
         self._shutdown_requested = False
         self._last_quote_time: Optional[datetime] = None
         self._last_bar_time: Optional[datetime] = None
+        self._current_session: Optional[str] = None
 
         # Setup signal handlers
         self._setup_signal_handlers()
@@ -65,6 +66,71 @@ class LiveTradingEngine:
         elif tf.endswith("h"):
             return int(tf[:-1]) * 60
         return int(tf)
+
+    def _get_current_session(self) -> str:
+        """Determine current trading session based on ET time."""
+        now = datetime.now(self.tz)
+        current_minutes = now.hour * 60 + now.minute
+        rth_start = 9 * 60 + 30   # 09:30
+        rth_end = 16 * 60         # 16:00
+
+        if rth_start <= current_minutes < rth_end:
+            return "rth"
+        return "overnight"
+
+    def _apply_session_config(self, session: str):
+        """Apply session-specific configuration and recalculate indicators."""
+        if session == "rth":
+            self.config.simple_mode = False
+            self.config.use_heikin_ashi = False
+            self.config.trading_start = "09:30"
+            self.config.trading_end = "16:00"
+            logger.info(
+                "Session: RTH (Full MTF filtered, regular candles, 09:30-16:00)"
+            )
+        else:
+            self.config.simple_mode = True
+            self.config.use_heikin_ashi = True
+            self.config.trading_start = "16:00"
+            self.config.trading_end = "09:30"
+            logger.info(
+                "Session: Overnight (Simple UT Bot, Heikin-Ashi, 16:00-09:30)"
+            )
+
+        self._current_session = session
+
+        # Update signal generator's hours filter for new session times
+        self.signal_generator.update_session_config()
+
+        # Recalculate indicators (Heikin-Ashi setting affects UT Bot)
+        self._update_signal_generator()
+
+    def _check_session_transition(self, quote: Quote) -> bool:
+        """Check if session has changed and handle transition."""
+        if self.config.session_type != "auto":
+            return False
+
+        new_session = self._get_current_session()
+        if new_session == self._current_session:
+            return False
+
+        logger.info(
+            f"SESSION TRANSITION: {self._current_session} -> {new_session}"
+        )
+
+        # Force exit any open position before switching
+        if self.paper_trader.has_position():
+            logger.info("Force-closing position for session transition")
+            exit_signal = LiveSignal(
+                timestamp=datetime.now(self.tz),
+                signal_type="exit_long",
+                price=quote.last_price,
+                reason=f"Session transition: {self._current_session} -> {new_session}",
+            )
+            self._execute_exit(exit_signal, quote)
+
+        self._apply_session_config(new_session)
+        return True
 
     def _setup_signal_handlers(self):
         """Setup handlers for graceful shutdown."""
@@ -80,9 +146,7 @@ class LiveTradingEngine:
         logger.info("=" * 60)
         logger.info("GenNyx Live Paper Trading Engine")
         logger.info("=" * 60)
-        logger.info(f"Session: {self.config.session_type}")
-        logger.info(f"Trading Hours: {self.config.trading_start} - {self.config.trading_end} ET")
-        logger.info(f"Simple Mode: {self.config.simple_mode}")
+        logger.info(f"Session Type: {self.config.session_type}")
         logger.info(f"Poll Interval: {self.config.poll_interval}s")
         logger.info("=" * 60)
 
@@ -97,6 +161,16 @@ class LiveTradingEngine:
             self._restore_state()
         else:
             self._bootstrap_data()
+
+        # Initialize session mode (auto switches between RTH and Overnight)
+        if self.config.session_type == "auto":
+            session = self._get_current_session()
+            self._apply_session_config(session)
+        else:
+            self._current_session = self.config.session_type
+            logger.info(f"Fixed session: {self._current_session}")
+            logger.info(f"Trading Hours: {self.config.trading_start} - {self.config.trading_end} ET")
+            logger.info(f"Simple Mode: {self.config.simple_mode}")
 
         self._log_status()
 
@@ -196,13 +270,19 @@ class LiveTradingEngine:
     def _on_bar_close(self, completed_candle, quote: Quote):
         """Handle bar close event."""
         logger.info(
-            f"Bar close: {completed_candle.timestamp} | "
+            f"Bar close [{self._current_session}]: {completed_candle.timestamp} | "
             f"O:{completed_candle.open:.2f} H:{completed_candle.high:.2f} "
             f"L:{completed_candle.low:.2f} C:{completed_candle.close:.2f}"
         )
 
         self._last_bar_time = completed_candle.timestamp
-        self._update_signal_generator()
+
+        # Check session transition first (auto mode only)
+        session_changed = self._check_session_transition(quote)
+
+        # Update indicators (skip if session change already did it)
+        if not session_changed:
+            self._update_signal_generator()
 
         # Check exit first if in position
         if self.paper_trader.has_position():
@@ -359,6 +439,8 @@ class LiveTradingEngine:
         """Log current status."""
         logger.info("-" * 60)
         logger.info("Status:")
+        logger.info(f"  Session: {self._current_session or 'N/A'} (mode: {self.config.session_type})")
+        logger.info(f"  Simple Mode: {self.config.simple_mode} | Heikin-Ashi: {self.config.use_heikin_ashi}")
         logger.info(f"  Capital: ${self.paper_trader.capital:,.2f}")
         logger.info(f"  Position: {'Yes' if self.paper_trader.has_position() else 'No'}")
 

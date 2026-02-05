@@ -1,0 +1,783 @@
+"""
+GenNyx Backtester — NQ=F 60-Day Strategy (Aligned to Proven Futures Project)
+
+Runs three sessions matching the proven strategy:
+  - RTH (9:30-16:00): Full MTF filtered + regular candles
+  - Overnight (16:00-9:30): Simple UT Bot + Heikin-Ashi candles
+  - Combined: RTH + Overnight merged
+
+Usage:
+    python scripts/backtest.py
+"""
+
+import sys
+import time
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import pytz
+import yfinance as yf
+
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from gennyx.indicators import (
+    ut_bot_alert,
+    supertrend,
+    calculate_adx,
+    ema_stack,
+    bollinger_squeeze,
+)
+from gennyx.indicators.ut_bot import calculate_atr
+from gennyx.strategy.filters import HTFFilter, TrendFilter
+from gennyx.strategy.position import PositionSizer
+
+# ---------------------------------------------------------------------------
+# Configuration (matches proven Futures project config/settings.py)
+# ---------------------------------------------------------------------------
+BASE_CONFIG = {
+    "symbol": "NQ=F",
+    "days": 60,
+    # UT Bot
+    "ut_sensitivity": 3.0,
+    "ut_atr_period": 10,
+    # Supertrend
+    "st_atr_period": 8,
+    "st_multiplier": 2.5,
+    # ADX
+    "adx_period": 14,
+    "adx_threshold": 25,
+    "adx_min_trend": 20,
+    # EMA
+    "ema_periods": (9, 20, 50),
+    # Bollinger Bands
+    "bb_period": 20,
+    "bb_std": 2.0,
+    "bb_squeeze_percentile": 25,
+    # Risk / position sizing (MNQ contract specs)
+    "initial_capital": 30000.0,
+    "risk_per_trade": 0.03,
+    "hard_stop_atr_mult": 2.0,
+    "point_value": 2.0,
+    "commission": 2.50,
+    "slippage": 0.25,
+    "margin_per_contract": 2100.0,
+    "margin_buffer": 0.80,
+    # Warmup
+    "warmup_bars": 100,
+}
+
+# Session-specific overrides
+SESSION_CONFIGS = {
+    "rth": {
+        "trading_start": "09:30",
+        "trading_end": "16:00",
+        "use_heikin_ashi": False,
+        "simple_mode": False,
+    },
+    "overnight": {
+        "trading_start": "16:00",
+        "trading_end": "09:30",
+        "use_heikin_ashi": True,
+        "simple_mode": True,
+    },
+}
+
+ET = pytz.timezone("America/New_York")
+
+
+# ---------------------------------------------------------------------------
+# Data classes
+# ---------------------------------------------------------------------------
+@dataclass
+class Trade:
+    entry_time: pd.Timestamp
+    exit_time: pd.Timestamp
+    entry_price: float
+    exit_price: float
+    quantity: int
+    pnl: float
+    entry_reason: str
+    exit_reason: str
+    session: str = ""
+
+
+# ---------------------------------------------------------------------------
+# Trading hours helpers
+# ---------------------------------------------------------------------------
+def is_trading_hours(ts: pd.Timestamp, start_str: str, end_str: str) -> bool:
+    """Check if timestamp is within trading hours (supports overnight)."""
+    local = ts.astimezone(ET).time() if ts.tz else ts.time()
+    start = datetime.strptime(start_str, "%H:%M").time()
+    end = datetime.strptime(end_str, "%H:%M").time()
+    if start > end:  # overnight
+        return local >= start or local < end
+    return start <= local < end
+
+
+def is_near_close(ts: pd.Timestamp, end_str: str, start_str: str,
+                  minutes_before: int = 5) -> bool:
+    """Check if timestamp is within N minutes of session close."""
+    local = ts.astimezone(ET) if ts.tz else ts
+    end = datetime.strptime(end_str, "%H:%M").time()
+    close_dt = local.replace(hour=end.hour, minute=end.minute, second=0, microsecond=0)
+    # For overnight sessions, if we're after start, close is next day
+    start = datetime.strptime(start_str, "%H:%M").time()
+    if start > end and local.time() >= start:
+        close_dt = close_dt + timedelta(days=1)
+    delta = (close_dt - local).total_seconds() / 60
+    return 0 <= delta <= minutes_before
+
+
+# ---------------------------------------------------------------------------
+# Data fetching
+# ---------------------------------------------------------------------------
+def fetch_data(symbol: str, days: int):
+    """Download 5m and 1h OHLCV data from Yahoo Finance."""
+    print(f"Fetching {symbol} data from Yahoo Finance ...")
+    ticker = yf.Ticker(symbol)
+
+    df_5m = ticker.history(period=f"{days}d", interval="5m")
+    df_1h = ticker.history(period=f"{days + 10}d", interval="1h")
+
+    # Normalise column names
+    df_5m.columns = [c.lower().replace(" ", "_") for c in df_5m.columns]
+    df_1h.columns = [c.lower().replace(" ", "_") for c in df_1h.columns]
+
+    ohlcv = ["open", "high", "low", "close", "volume"]
+    df_5m = df_5m[[c for c in ohlcv if c in df_5m.columns]]
+    df_1h = df_1h[[c for c in ohlcv if c in df_1h.columns]]
+
+    # Timezone -> America/New_York
+    tz = "America/New_York"
+    for df in (df_5m, df_1h):
+        if df.index.tz is not None:
+            df.index = df.index.tz_convert(tz)
+        else:
+            df.index = df.index.tz_localize("UTC").tz_convert(tz)
+
+    df_5m.dropna(inplace=True)
+    df_1h.dropna(inplace=True)
+
+    return df_5m, df_1h
+
+
+# ---------------------------------------------------------------------------
+# Indicator helpers
+# ---------------------------------------------------------------------------
+def add_indicators(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    """Compute all indicators on a DataFrame (vectorised)."""
+    result = df.copy()
+
+    ut = ut_bot_alert(result, sensitivity=cfg["ut_sensitivity"],
+                      atr_period=cfg["ut_atr_period"],
+                      use_heikin_ashi=cfg.get("use_heikin_ashi", False))
+    result = pd.concat([result, ut], axis=1)
+
+    st = supertrend(result, atr_period=cfg["st_atr_period"],
+                    multiplier=cfg["st_multiplier"])
+    result = pd.concat([result, st], axis=1)
+
+    adx = calculate_adx(result, period=cfg["adx_period"])
+    result = pd.concat([result, adx], axis=1)
+
+    emas = ema_stack(result, periods=cfg["ema_periods"])
+    result = pd.concat([result, emas], axis=1)
+
+    bb = bollinger_squeeze(result, period=cfg["bb_period"],
+                           std_dev=cfg["bb_std"],
+                           squeeze_percentile=cfg["bb_squeeze_percentile"])
+    result = pd.concat([result, bb], axis=1)
+
+    result["atr"] = calculate_atr(result["high"], result["low"],
+                                  result["close"], period=cfg["ut_atr_period"])
+    return result
+
+
+def align_htf(primary_df: pd.DataFrame, htf_df: pd.DataFrame) -> pd.DataFrame:
+    """Forward-fill HTF indicators onto the primary timeframe index."""
+    return htf_df.reindex(primary_df.index, method="ffill")
+
+
+# ---------------------------------------------------------------------------
+# Entry / exit logic (matches proven Futures project signals.py)
+# ---------------------------------------------------------------------------
+def check_entry(row, idx, cfg, htf_filter, trend_filter) -> tuple:
+    """Check entry conditions based on session mode."""
+    start = cfg["trading_start"]
+    end = cfg["trading_end"]
+
+    # Must be within trading hours
+    if not is_trading_hours(idx, start, end):
+        return False, ""
+
+    if cfg["simple_mode"]:
+        # Simple: UT Bot buy signal only
+        if row.get("ut_buy_signal", False):
+            return True, "Long entry: UT Bot buy signal"
+        return False, ""
+    else:
+        # Full MTF filtered
+        # 1. HTF bias
+        if htf_filter is not None and not htf_filter.is_bullish(idx):
+            return False, ""
+        # 2. UT Bot buy signal
+        if not row.get("ut_buy_signal", False):
+            return False, ""
+        # 3. Trend filter
+        adx_val = row.get("adx", float("nan"))
+        ema_aligned = row.get("ema_bullish_aligned", False)
+        in_squeeze = row.get("bb_squeeze", False)
+        if not trend_filter.is_valid_for_entry(adx_val, ema_aligned, in_squeeze):
+            return False, ""
+        return True, "Long entry: UT Bot signal, bullish HTF bias"
+
+
+def check_exit(row, idx, entry_price, entry_atr, cfg) -> tuple:
+    """
+    Check exit conditions (matches proven Futures project signals.py order):
+    1. End of session (5 min before close)
+    2. Hard stop (entry - 2*ATR)
+    3. Close below UT trailing stop
+    4. UT Bot sell signal
+    """
+    price = row["close"]
+    start = cfg["trading_start"]
+    end = cfg["trading_end"]
+
+    # 1. End of session
+    if is_near_close(idx, end, start, minutes_before=5):
+        return True, "End of day exit"
+
+    # 2. Hard stop
+    hard_stop = entry_price - (cfg["hard_stop_atr_mult"] * entry_atr)
+    if price <= hard_stop:
+        return True, f"Hard stop hit at {hard_stop:.2f}"
+
+    # 3. Close below UT trailing stop
+    ut_stop = row.get("ut_trailing_stop", 0)
+    if ut_stop > 0 and price < ut_stop:
+        return True, f"Close below UT Bot trailing stop ({ut_stop:.2f})"
+
+    # 4. UT Bot sell signal
+    if row.get("ut_sell_signal", False):
+        return True, "UT Bot sell signal"
+
+    return False, ""
+
+
+# ---------------------------------------------------------------------------
+# Backtest engine
+# ---------------------------------------------------------------------------
+def run_backtest(df_5m: pd.DataFrame, htf_aligned, cfg: dict,
+                 session_label: str = ""):
+    """
+    Walk through 5m bars, check entry/exit, track trades & equity.
+    Uses session-specific entry/exit logic.
+    """
+    capital = cfg["initial_capital"]
+    position = None
+    trades: list[Trade] = []
+    equity_curve: list[tuple] = []
+
+    sizer = PositionSizer(
+        initial_capital=cfg["initial_capital"],
+        risk_per_trade=cfg["risk_per_trade"],
+        point_value=cfg["point_value"],
+        commission=cfg["commission"],
+        slippage_points=cfg["slippage"],
+        margin_per_contract=cfg["margin_per_contract"],
+        margin_buffer=cfg["margin_buffer"],
+    )
+
+    trend_filter = TrendFilter(
+        adx_threshold=cfg["adx_threshold"],
+        adx_min_trend=cfg["adx_min_trend"],
+    )
+
+    htf_filter = HTFFilter(htf_aligned) if htf_aligned is not None else None
+    warmup = cfg["warmup_bars"]
+
+    for i in range(warmup, len(df_5m)):
+        row = df_5m.iloc[i]
+        idx = df_5m.index[i]
+        price = row["close"]
+
+        # Skip bars where ATR is NaN
+        if pd.isna(row.get("atr", float("nan"))):
+            equity_curve.append((idx, capital))
+            continue
+
+        # --- EXIT ---
+        if position is not None:
+            should_exit, exit_reason = check_exit(
+                row, idx, position["entry_price"],
+                position["entry_atr"], cfg)
+
+            if should_exit:
+                pnl = sizer.calculate_pnl(position["entry_price"], price,
+                                           position["quantity"])
+                capital += pnl
+                trades.append(Trade(
+                    entry_time=position["entry_time"],
+                    exit_time=idx,
+                    entry_price=position["entry_price"],
+                    exit_price=price,
+                    quantity=position["quantity"],
+                    pnl=pnl,
+                    entry_reason=position["entry_reason"],
+                    exit_reason=exit_reason,
+                    session=session_label,
+                ))
+                position = None
+
+        # --- ENTRY ---
+        if position is None:
+            should_enter, entry_reason = check_entry(
+                row, idx, cfg, htf_filter, trend_filter)
+
+            if should_enter:
+                atr_val = row.get("atr", 0)
+                stop_loss = price - (cfg["hard_stop_atr_mult"] * atr_val) if atr_val > 0 else price - 10
+                qty = sizer.calculate_size(capital, price, stop_loss)
+                if qty > 0:
+                    position = {
+                        "entry_time": idx,
+                        "entry_price": price,
+                        "quantity": qty,
+                        "entry_atr": atr_val,
+                        "entry_reason": entry_reason,
+                    }
+
+        # Track equity
+        if position is not None:
+            unrealized = sizer.calculate_pnl(
+                position["entry_price"], price, position["quantity"])
+            equity_curve.append((idx, capital + unrealized))
+        else:
+            equity_curve.append((idx, capital))
+
+    # Force-close open position at end
+    if position is not None:
+        final_price = df_5m.iloc[-1]["close"]
+        pnl = sizer.calculate_pnl(position["entry_price"], final_price,
+                                   position["quantity"])
+        capital += pnl
+        trades.append(Trade(
+            entry_time=position["entry_time"],
+            exit_time=df_5m.index[-1],
+            entry_price=position["entry_price"],
+            exit_price=final_price,
+            quantity=position["quantity"],
+            pnl=pnl,
+            entry_reason=position["entry_reason"],
+            exit_reason="End of backtest data",
+            session=session_label,
+        ))
+
+    return trades, equity_curve
+
+
+# ---------------------------------------------------------------------------
+# Performance metrics
+# ---------------------------------------------------------------------------
+def max_consecutive(values, predicate):
+    best = current = 0
+    for v in values:
+        if predicate(v):
+            current += 1
+            best = max(best, current)
+        else:
+            current = 0
+    return best
+
+
+def calc_metrics(trades: list[Trade], equity_curve: list[tuple],
+                 initial_capital: float) -> dict:
+    if not trades:
+        return {k: 0 for k in [
+            "total_trades", "winning_trades", "win_rate", "total_pnl",
+            "total_return", "profit_factor", "avg_trade", "avg_winner",
+            "avg_loser", "largest_win", "largest_loss", "max_dd", "max_dd_pct",
+            "sharpe", "avg_hold_hrs", "max_consec_wins", "max_consec_losses",
+        ]}
+
+    pnls = [t.pnl for t in trades]
+    winners = [p for p in pnls if p > 0]
+    losers = [p for p in pnls if p <= 0]
+
+    total_pnl = sum(pnls)
+    gross_profit = sum(winners) if winners else 0
+    gross_loss = abs(sum(losers)) if losers else 0
+
+    # Max drawdown
+    peak = initial_capital
+    max_dd = max_dd_pct = 0.0
+    for _, eq in equity_curve:
+        if eq > peak:
+            peak = eq
+        dd = peak - eq
+        if dd > max_dd:
+            max_dd = dd
+            max_dd_pct = dd / peak * 100 if peak > 0 else 0
+
+    # Sharpe
+    sharpe = 0.0
+    if equity_curve:
+        eq_df = pd.DataFrame(equity_curve, columns=["ts", "equity"])
+        eq_df["date"] = eq_df["ts"].dt.date
+        daily_eq = eq_df.groupby("date")["equity"].last()
+        daily_ret = daily_eq.pct_change().dropna()
+        if len(daily_ret) > 1 and daily_ret.std() > 0:
+            sharpe = (daily_ret.mean() / daily_ret.std()) * np.sqrt(252)
+
+    hold_hrs = [(t.exit_time - t.entry_time).total_seconds() / 3600
+                for t in trades]
+
+    return {
+        "total_trades": len(trades),
+        "winning_trades": len(winners),
+        "win_rate": len(winners) / len(trades) * 100 if trades else 0,
+        "total_pnl": total_pnl,
+        "total_return": total_pnl / initial_capital * 100,
+        "profit_factor": gross_profit / gross_loss if gross_loss > 0 else float("inf"),
+        "avg_trade": total_pnl / len(trades),
+        "avg_winner": sum(winners) / len(winners) if winners else 0,
+        "avg_loser": sum(losers) / len(losers) if losers else 0,
+        "largest_win": max(winners) if winners else 0,
+        "largest_loss": min(losers) if losers else 0,
+        "max_dd": max_dd,
+        "max_dd_pct": max_dd_pct,
+        "sharpe": sharpe,
+        "avg_hold_hrs": sum(hold_hrs) / len(hold_hrs) if hold_hrs else 0,
+        "max_consec_wins": max_consecutive(pnls, lambda x: x > 0),
+        "max_consec_losses": max_consecutive(pnls, lambda x: x <= 0),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Output helpers
+# ---------------------------------------------------------------------------
+def fmt(val, kind):
+    if kind == "$":
+        return f"${val:+,.2f}"
+    if kind == "%":
+        return f"{val:+.2f}%"
+    if kind == "pct":
+        return f"{val:.1f}%"
+    if kind == "f2":
+        return f"{val:.2f}"
+    if kind == "hrs":
+        return f"{val:.1f}h"
+    if kind == "dd":
+        return f"${val:,.2f}"
+    if kind == "int":
+        return f"{int(val)}"
+    return str(val)
+
+
+def print_session_results(metrics: dict, label: str):
+    """Print results for a single session."""
+    rows = [
+        ("Total Trades",       "int",  "total_trades"),
+        ("Winning Trades",     "int",  "winning_trades"),
+        ("Win Rate",            "pct",  "win_rate"),
+        ("Total P&L",           "$",    "total_pnl"),
+        ("Total Return",        "%",    "total_return"),
+        ("Profit Factor",       "f2",   "profit_factor"),
+        ("Avg Trade P&L",       "$",    "avg_trade"),
+        ("Avg Winner",          "$",    "avg_winner"),
+        ("Avg Loser",           "$",    "avg_loser"),
+        ("Largest Win",         "$",    "largest_win"),
+        ("Largest Loss",        "$",    "largest_loss"),
+        ("Max Drawdown",        "dd",   "max_dd"),
+        ("Max Drawdown %",      "pct",  "max_dd_pct"),
+        ("Sharpe Ratio",        "f2",   "sharpe"),
+        ("Avg Holding Time",    "hrs",  "avg_hold_hrs"),
+        ("Max Consec. Wins",    "int",  "max_consec_wins"),
+        ("Max Consec. Losses",  "int",  "max_consec_losses"),
+    ]
+    print(f"\n  {label}")
+    print("  " + "-" * 50)
+    for name, kind, key in rows:
+        print(f"  {name:<26} {fmt(metrics[key], kind):>22}")
+
+
+def print_comparison_table(rth_m: dict, ovn_m: dict, both_m: dict):
+    """Print 3-column comparison table."""
+    rows = [
+        ("Total Trades",       "int",  "total_trades"),
+        ("Win Rate",            "pct",  "win_rate"),
+        ("Total P&L",           "$",    "total_pnl"),
+        ("Total Return",        "%",    "total_return"),
+        ("Profit Factor",       "f2",   "profit_factor"),
+        ("Avg Trade P&L",       "$",    "avg_trade"),
+        ("Avg Winner",          "$",    "avg_winner"),
+        ("Avg Loser",           "$",    "avg_loser"),
+        ("Largest Win",         "$",    "largest_win"),
+        ("Largest Loss",        "$",    "largest_loss"),
+        ("Max Drawdown",        "dd",   "max_dd"),
+        ("Max Drawdown %",      "pct",  "max_dd_pct"),
+        ("Sharpe Ratio",        "f2",   "sharpe"),
+        ("Avg Holding Time",    "hrs",  "avg_hold_hrs"),
+    ]
+
+    w = 84
+    sep = "=" * w
+    print(f"\n{sep}")
+    print(f"{'BACKTEST RESULTS — BY SESSION':^{w}}")
+    print(sep)
+    print(f"{'Metric':<22} {'RTH (9:30-16:00)':>20} {'Overnight (16-9:30)':>20} {'Combined':>20}")
+    print("-" * w)
+    for label, kind, key in rows:
+        rv = fmt(rth_m[key], kind)
+        ov = fmt(ovn_m[key], kind)
+        bv = fmt(both_m[key], kind)
+        print(f"{label:<22} {rv:>20} {ov:>20} {bv:>20}")
+    print(sep)
+
+
+def print_monthly_breakdown(all_trades: list[Trade], initial_capital: float):
+    """Break down results by month per session."""
+    if not all_trades:
+        return
+
+    df = pd.DataFrame([{
+        "session": t.session,
+        "entry_time": t.entry_time,
+        "pnl": t.pnl,
+    } for t in all_trades])
+    df["entry_time"] = pd.to_datetime(df["entry_time"])
+    df["month"] = df["entry_time"].dt.to_period("M")
+
+    print(f"\n{'MONTHLY BREAKDOWN':^84}")
+    print("=" * 84)
+
+    for session in ["rth", "overnight", "both"]:
+        if session == "both":
+            sdf = df.copy()
+        else:
+            sdf = df[df["session"] == session]
+
+        if sdf.empty:
+            continue
+
+        label = {"rth": "RTH (9:30 AM - 4 PM)",
+                 "overnight": "OVERNIGHT (4 PM - 9:30 AM)",
+                 "both": "COMBINED (ALL SESSIONS)"}[session]
+
+        print(f"\n  {label}")
+        print(f"  {'Period':<15} {'Trades':>8} {'Wins':>8} {'Win Rate':>10} {'P&L':>14} {'Return':>10}")
+        print("  " + "-" * 68)
+
+        total_trades = total_wins = 0
+        total_pnl = 0.0
+
+        for month, group in sorted(sdf.groupby("month")):
+            t = len(group)
+            w = len(group[group["pnl"] > 0])
+            pnl = group["pnl"].sum()
+            wr = w / t if t > 0 else 0
+            total_trades += t
+            total_wins += w
+            total_pnl += pnl
+            print(f"  {month.strftime('%b %Y'):<15} {t:>8} {w:>8} {wr:>9.1%} ${pnl:>12,.2f} {pnl/initial_capital:>9.1%}")
+
+        print("  " + "-" * 68)
+        wr = total_wins / total_trades if total_trades > 0 else 0
+        print(f"  {'60-DAY TOTAL':<15} {total_trades:>8} {total_wins:>8} {wr:>9.1%} "
+              f"${total_pnl:>12,.2f} {total_pnl/initial_capital:>9.1%}")
+
+
+def print_trades(trades: list[Trade], label: str, max_show: int = 20):
+    print(f"\n--- {label} -- Last {min(len(trades), max_show)} of {len(trades)} Trades ---")
+    if not trades:
+        print("  No trades.")
+        return
+    print(f"  {'Entry Time':<22} {'Exit Time':<22} {'Entry':>10} {'Exit':>10} "
+          f"{'Qty':>4} {'P&L':>12} {'Exit Reason'}")
+    print("  " + "-" * 110)
+    for t in trades[-max_show:]:
+        etime = t.entry_time.strftime("%Y-%m-%d %H:%M")
+        xtime = t.exit_time.strftime("%Y-%m-%d %H:%M")
+        print(f"  {etime:<22} {xtime:<22} {t.entry_price:>10.2f} {t.exit_price:>10.2f} "
+              f"{t.quantity:>4} {t.pnl:>+12.2f} {t.exit_reason}")
+
+
+def plot_equity(rth_curve, ovn_curve, combined_curve, initial_capital):
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        print("\nmatplotlib not installed -- skipping equity curve plot.")
+        return
+
+    fig, axes = plt.subplots(2, 1, figsize=(14, 8), sharex=True)
+
+    curves = [
+        (rth_curve, "RTH", "royalblue"),
+        (ovn_curve, "Overnight", "darkorange"),
+        (combined_curve, "Combined", "forestgreen"),
+    ]
+
+    for curve, label, color in curves:
+        if not curve:
+            continue
+        ts, eq = zip(*curve)
+        axes[0].plot(ts, eq, label=label, color=color, linewidth=0.8)
+
+    axes[0].axhline(y=initial_capital, color="gray", linestyle="--", alpha=0.5)
+    axes[0].set_ylabel("Equity ($)")
+    axes[0].set_title("GenNyx Backtest -- NQ=F 60-Day (RTH / Overnight / Combined)")
+    axes[0].legend(loc="upper left")
+    axes[0].grid(True, alpha=0.3)
+
+    for curve, label, color in curves:
+        if not curve:
+            continue
+        ts, equities = zip(*curve)
+        peak = equities[0]
+        dd = []
+        for eq in equities:
+            if eq > peak:
+                peak = eq
+            dd.append((peak - eq) / peak * 100 if peak > 0 else 0)
+        axes[1].fill_between(ts, dd, alpha=0.2, color=color)
+        axes[1].plot(ts, dd, color=color, linewidth=0.6, label=label)
+
+    axes[1].set_ylabel("Drawdown (%)")
+    axes[1].set_xlabel("Date")
+    axes[1].legend(loc="upper left")
+    axes[1].grid(True, alpha=0.3)
+    axes[1].invert_yaxis()
+
+    plt.tight_layout()
+    out_path = Path(__file__).resolve().parent.parent / "backtest_results.png"
+    plt.savefig(out_path, dpi=150)
+    print(f"\nEquity curve saved to {out_path}")
+    plt.close()
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+def main():
+    cfg = BASE_CONFIG.copy()
+    cap = cfg["initial_capital"]
+
+    print("=" * 84)
+    print(f"{'GenNyx Backtester -- NQ=F 60-Day (Session-Based Strategy)':^84}")
+    print("=" * 84)
+    print(f"  Symbol:           {cfg['symbol']} (using MNQ contract specs)")
+    print(f"  Initial Capital:  ${cap:,.2f}")
+    print(f"  Risk Per Trade:   {cfg['risk_per_trade']:.0%}")
+    print(f"  Point Value:      ${cfg['point_value']}")
+    print(f"  RTH:              9:30-16:00 ET  | Full MTF filtered, regular candles")
+    print(f"  Overnight:        16:00-09:30 ET | Simple UT Bot, Heikin-Ashi candles")
+    print()
+
+    # 1. Fetch data (once)
+    t0 = time.time()
+    df_5m_raw, df_1h_raw = fetch_data(cfg["symbol"], cfg["days"])
+    print(f"  5m bars:  {len(df_5m_raw):,}  ({df_5m_raw.index[0].strftime('%Y-%m-%d')} to "
+          f"{df_5m_raw.index[-1].strftime('%Y-%m-%d')})")
+    print(f"  1h bars:  {len(df_1h_raw):,}  ({df_1h_raw.index[0].strftime('%Y-%m-%d')} to "
+          f"{df_1h_raw.index[-1].strftime('%Y-%m-%d')})")
+    print(f"  Fetch time: {time.time() - t0:.1f}s")
+
+    if len(df_5m_raw) < cfg["warmup_bars"] + 50:
+        print(f"ERROR: Not enough 5m data. Need {cfg['warmup_bars'] + 50}, got {len(df_5m_raw)}.")
+        sys.exit(1)
+
+    # 2. Compute indicators for each session
+    all_trades: list[Trade] = []
+
+    # --- RTH: regular candles, full MTF filtered ---
+    print("\n--- RTH Session (Full MTF Filtered) ---")
+    rth_cfg = {**cfg, **SESSION_CONFIGS["rth"]}
+
+    print("  Computing indicators (regular candles) ...", end=" ", flush=True)
+    t0 = time.time()
+    df_5m_rth = add_indicators(df_5m_raw, rth_cfg)
+    df_1h_rth = add_indicators(df_1h_raw, rth_cfg)
+    htf_rth = align_htf(df_5m_rth, df_1h_rth)
+    print(f"done ({time.time() - t0:.1f}s)")
+
+    print("  Running backtest ...", end=" ", flush=True)
+    t0 = time.time()
+    rth_trades, rth_curve = run_backtest(df_5m_rth, htf_rth, rth_cfg, "rth")
+    print(f"done ({time.time() - t0:.1f}s) -- {len(rth_trades)} trades")
+    all_trades.extend(rth_trades)
+
+    # --- Overnight: Heikin-Ashi candles, simple UT Bot ---
+    print("\n--- Overnight Session (Simple UT Bot + Heikin-Ashi) ---")
+    ovn_cfg = {**cfg, **SESSION_CONFIGS["overnight"]}
+
+    print("  Computing indicators (Heikin-Ashi) ...", end=" ", flush=True)
+    t0 = time.time()
+    df_5m_ovn = add_indicators(df_5m_raw, ovn_cfg)
+    df_1h_ovn = add_indicators(df_1h_raw, ovn_cfg)
+    htf_ovn = align_htf(df_5m_ovn, df_1h_ovn)
+    print(f"done ({time.time() - t0:.1f}s)")
+
+    print("  Running backtest ...", end=" ", flush=True)
+    t0 = time.time()
+    ovn_trades, ovn_curve = run_backtest(df_5m_ovn, htf_ovn, ovn_cfg, "overnight")
+    print(f"done ({time.time() - t0:.1f}s) -- {len(ovn_trades)} trades")
+    all_trades.extend(ovn_trades)
+
+    # --- Combined metrics ---
+    combined_trades = sorted(all_trades, key=lambda t: t.entry_time)
+
+    # Build combined equity curve by merging
+    combined_eq = sorted(rth_curve + ovn_curve, key=lambda x: x[0])
+
+    # 3. Calculate metrics
+    rth_m = calc_metrics(rth_trades, rth_curve, cap)
+    ovn_m = calc_metrics(ovn_trades, ovn_curve, cap)
+    both_m = calc_metrics(combined_trades, combined_eq, cap)
+
+    # Override combined totals (simple sum for trades/wins/pnl)
+    both_m["total_trades"] = rth_m["total_trades"] + ovn_m["total_trades"]
+    both_m["winning_trades"] = rth_m["winning_trades"] + ovn_m["winning_trades"]
+    both_m["total_pnl"] = rth_m["total_pnl"] + ovn_m["total_pnl"]
+    both_m["total_return"] = both_m["total_pnl"] / cap * 100
+    both_m["win_rate"] = (both_m["winning_trades"] / both_m["total_trades"] * 100
+                          if both_m["total_trades"] > 0 else 0)
+
+    # 4. Output
+    print_comparison_table(rth_m, ovn_m, both_m)
+    print_monthly_breakdown(all_trades, cap)
+    print_trades(rth_trades, "RTH Trades")
+    print_trades(ovn_trades, "Overnight Trades")
+
+    # 5. Equity curve
+    plot_equity(rth_curve, ovn_curve, combined_eq, cap)
+
+    # 6. Export trades CSV
+    results_dir = Path(__file__).resolve().parent.parent / "results"
+    results_dir.mkdir(exist_ok=True)
+    trades_df = pd.DataFrame([{
+        "entry_time": t.entry_time,
+        "exit_time": t.exit_time,
+        "entry_price": t.entry_price,
+        "exit_price": t.exit_price,
+        "quantity": t.quantity,
+        "pnl": t.pnl,
+        "entry_reason": t.entry_reason,
+        "exit_reason": t.exit_reason,
+        "session": t.session,
+    } for t in combined_trades])
+    trades_file = results_dir / "trades_combined_60d.csv"
+    trades_df.to_csv(trades_file, index=False)
+    print(f"\nTrades exported to {trades_file}")
+
+    print("\nBacktest complete.")
+
+
+if __name__ == "__main__":
+    main()

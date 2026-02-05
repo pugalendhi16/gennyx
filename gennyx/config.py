@@ -148,8 +148,8 @@ class Config:
     # Live Trading Settings
     poll_interval: int = 30
     save_interval: int = 60
-    simple_mode: bool = True
-    session_type: str = "24h"
+    simple_mode: bool = False
+    session_type: str = "auto"
 
     # Logging
     log_level: str = "INFO"
@@ -214,10 +214,10 @@ class Config:
             slippage_points=get_env_float("SLIPPAGE_POINTS", 0.25),
 
             # Session settings
-            trading_start=get_env("TRADING_START", "00:00"),
-            trading_end=get_env("TRADING_END", "23:59"),
-            session_type=get_env("SESSION_TYPE", "24h"),
-            simple_mode=get_env_bool("SIMPLE_MODE", True),
+            trading_start=get_env("TRADING_START", "09:30"),
+            trading_end=get_env("TRADING_END", "16:00"),
+            session_type=get_env("SESSION_TYPE", "auto"),
+            simple_mode=get_env_bool("SIMPLE_MODE", False),
 
             # Polling
             poll_interval=get_env_int("POLL_INTERVAL", 30),

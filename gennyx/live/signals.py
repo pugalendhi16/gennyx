@@ -55,6 +55,14 @@ class LiveSignalGenerator:
         self._htf_df: Optional[pd.DataFrame] = None
         self._htf_filter: Optional[HTFFilter] = None
 
+    def update_session_config(self):
+        """Update hours filter when session config changes (for auto mode)."""
+        self.hours_filter = TradingHoursFilter(
+            start_time=self.config.trading_start,
+            end_time=self.config.trading_end,
+            timezone=self.config.timezone,
+        )
+
     def update_data(self, primary_df: pd.DataFrame, htf_df: pd.DataFrame):
         """
         Update data and recalculate indicators.

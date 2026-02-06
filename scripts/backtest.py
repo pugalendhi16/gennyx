@@ -74,6 +74,8 @@ BASE_CONFIG = {
     "margin_buffer": 0.80,
     # Warmup
     "warmup_bars": 100,
+    # Hour filter (skip entries during these hours ET)
+    "blocked_hours": [],  # e.g., [1, 5, 7, 8, 9, 21, 22, 23]
 }
 
 # Session-specific overrides
@@ -285,6 +287,13 @@ def check_entry(row, idx, cfg, htf_filter, trend_filter) -> tuple:
     if not is_trading_hours(idx, start, end):
         return False, ""
 
+    # Skip blocked hours
+    blocked_hours = cfg.get("blocked_hours", [])
+    if blocked_hours:
+        local_hour = idx.astimezone(ET).hour if idx.tz else idx.hour
+        if local_hour in blocked_hours:
+            return False, ""
+
     if cfg["simple_mode"]:
         # Simple: UT Bot buy signal only
         if row.get("ut_buy_signal", False):
@@ -312,7 +321,7 @@ def check_exit(row, idx, entry_price, entry_atr, cfg) -> tuple:
     Check exit conditions (matches proven Futures project signals.py order):
     1. End of session (5 min before close)
     2. Hard stop (entry - 2*ATR)
-    3. Close below UT trailing stop
+    3. Close below UT trailing stop (skipped if no_trailing_stop=True)
     4. UT Bot sell signal
     """
     price = row["close"]
@@ -328,10 +337,11 @@ def check_exit(row, idx, entry_price, entry_atr, cfg) -> tuple:
     if price <= hard_stop:
         return True, f"Hard stop hit at {hard_stop:.2f}"
 
-    # 3. Close below UT trailing stop
-    ut_stop = row.get("ut_trailing_stop", 0)
-    if ut_stop > 0 and price < ut_stop:
-        return True, f"Close below UT Bot trailing stop ({ut_stop:.2f})"
+    # 3. Close below UT trailing stop (optional)
+    if not cfg.get("no_trailing_stop", False):
+        ut_stop = row.get("ut_trailing_stop", 0)
+        if ut_stop > 0 and price < ut_stop:
+            return True, f"Close below UT Bot trailing stop ({ut_stop:.2f})"
 
     # 4. UT Bot sell signal
     if row.get("ut_sell_signal", False):
@@ -736,10 +746,17 @@ def plot_equity(rth_curve, ovn_curve, combined_curve, initial_capital):
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
-def main(days: int = None, start_date: str = None, end_date: str = None):
+def main(days: int = None, start_date: str = None, end_date: str = None,
+         sensitivity: float = None, no_trailing_stop: bool = False,
+         blocked_hours: list = None):
     cfg = BASE_CONFIG.copy()
     if days:
         cfg["days"] = days
+    if sensitivity:
+        cfg["ut_sensitivity"] = sensitivity
+    cfg["no_trailing_stop"] = no_trailing_stop
+    if blocked_hours:
+        cfg["blocked_hours"] = blocked_hours
     cap = cfg["initial_capital"]
 
     print("=" * 84)
@@ -750,6 +767,11 @@ def main(days: int = None, start_date: str = None, end_date: str = None):
     print(f"  Risk Per Trade:   {cfg['risk_per_trade']:.0%}")
     print(f"  Point Value:      ${cfg['point_value']}")
     print(f"  UT Bot:           sens={cfg['ut_sensitivity']}, ATR={cfg['ut_atr_period']}, confirm={cfg['ut_confirmation_bars']}")
+    exit_mode = "UT SELL signal only" if cfg.get("no_trailing_stop") else "Trailing stop + UT SELL"
+    print(f"  Exit Mode:        {exit_mode}")
+    blocked = cfg.get("blocked_hours", [])
+    if blocked:
+        print(f"  Blocked Hours:    {sorted(blocked)} ET")
     print(f"  RTH:              9:30-16:00 ET  | Full MTF filtered, regular candles")
     print(f"  Overnight:        16:00-09:30 ET | Simple UT Bot, Heikin-Ashi candles")
     print()
@@ -772,11 +794,11 @@ def main(days: int = None, start_date: str = None, end_date: str = None):
         print(f"ERROR: Not enough 5m data. Need {cfg['warmup_bars'] + 50}, got {len(df_5m_raw)}.")
         sys.exit(1)
 
-    # 2. Compute indicators (overnight only)
+    # 2. Compute indicators (overnight only - RTH disabled due to poor performance)
     all_trades: list[Trade] = []
     rth_trades, rth_curve = [], []
 
-    print("\n--- RTH Session: DISABLED ---")
+    print("\n--- RTH Session: DISABLED (underperforming) ---")
 
     # --- Overnight: Heikin-Ashi candles, simple UT Bot ---
     print("\n--- Overnight Session (Simple UT Bot + Heikin-Ashi) ---")
@@ -1071,11 +1093,24 @@ if __name__ == "__main__":
                         help="Start date YYYY-MM-DD (overrides --days)")
     parser.add_argument("--end", type=str, default=None,
                         help="End date YYYY-MM-DD (default: today)")
+    parser.add_argument("--sensitivity", type=float, default=None,
+                        help="UT Bot sensitivity (default: 3.5)")
+    parser.add_argument("--no-trailing-stop", action="store_true",
+                        help="Exit only on UT SELL signal (disable trailing stop exit)")
+    parser.add_argument("--blocked-hours", type=str, default=None,
+                        help="Comma-separated hours to skip entries (e.g., '1,5,7,8,9,21,22,23')")
     args = parser.parse_args()
+
+    # Parse blocked hours
+    blocked_hours = None
+    if args.blocked_hours:
+        blocked_hours = [int(h.strip()) for h in args.blocked_hours.split(",")]
 
     if args.command == "sweep":
         sweep_sensitivity(days=args.days, start_date=args.start, end_date=args.end)
     elif args.command == "compare":
         compare_atr_modes(days=args.days, start_date=args.start, end_date=args.end)
     else:
-        main(days=args.days, start_date=args.start, end_date=args.end)
+        main(days=args.days, start_date=args.start, end_date=args.end,
+             sensitivity=args.sensitivity, no_trailing_stop=args.no_trailing_stop,
+             blocked_hours=blocked_hours)

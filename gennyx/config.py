@@ -79,6 +79,14 @@ def get_env_int(key: str, default: int) -> int:
     return int(os.environ.get(key, default))
 
 
+def get_env_list_int(key: str, default: list = None) -> list:
+    """Get list of integers from comma-separated environment variable."""
+    value = os.environ.get(key)
+    if not value:
+        return default or []
+    return [int(x.strip()) for x in value.split(",") if x.strip()]
+
+
 @dataclass
 class Config:
     """Trading strategy configuration from environment variables."""
@@ -126,6 +134,7 @@ class Config:
     trading_start: str = "09:30"
     trading_end: str = "16:00"
     timezone: str = "America/New_York"
+    blocked_hours: tuple = ()  # Hours to skip entries (e.g., (1, 5, 7, 8, 9, 21, 22, 23))
 
     # Risk Management
     initial_capital: float = 30000.0
@@ -219,6 +228,7 @@ class Config:
             trading_end=get_env("TRADING_END", "16:00"),
             session_type=get_env("SESSION_TYPE", "overnight"),
             simple_mode=get_env_bool("SIMPLE_MODE", False),
+            blocked_hours=tuple(get_env_list_int("BLOCKED_HOURS", [])),
 
             # Polling
             poll_interval=get_env_int("POLL_INTERVAL", 30),
@@ -246,4 +256,5 @@ class Config:
             "session_type": self.session_type,
             "simple_mode": self.simple_mode,
             "poll_interval": self.poll_interval,
+            "blocked_hours": self.blocked_hours,
         }

@@ -179,6 +179,20 @@ class LiveSignalGenerator:
                 reason="Outside trading hours",
             )
 
+        # Check blocked hours
+        blocked_hours = getattr(self.config, 'blocked_hours', ())
+        if blocked_hours:
+            import pytz
+            ET = pytz.timezone("America/New_York")
+            local_hour = idx.astimezone(ET).hour if idx.tz else idx.hour
+            if local_hour in blocked_hours:
+                return LiveSignal(
+                    timestamp=idx.to_pydatetime() if hasattr(idx, 'to_pydatetime') else idx,
+                    signal_type="none",
+                    price=price,
+                    reason=f"Blocked hour ({local_hour}:00 ET)",
+                )
+
         # Simple mode: just UT Bot signal
         if getattr(self.config, 'simple_mode', False):
             return self._check_simple_entry(idx, row, price)

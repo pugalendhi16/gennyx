@@ -1,25 +1,30 @@
 """
-GenNyx Backtester — NQ=F 60-Day Strategy (Aligned to Proven Futures Project)
+GenNyx Backtester — /MNQ Strategy (Database-backed)
 
 Runs three sessions matching the proven strategy:
   - RTH (9:30-16:00): Full MTF filtered + regular candles
   - Overnight (16:00-9:30): Simple UT Bot + Heikin-Ashi candles
   - Combined: RTH + Overnight merged
 
+Data source: PostgreSQL candles table (fetched via Schwab API)
+
 Usage:
-    python scripts/backtest.py
+    python scripts/backtest.py                    # Use database (default)
+    python scripts/backtest.py --days 60          # Last 60 days
+    python scripts/backtest.py --start 2025-09-01 # From specific date
 """
 
+import os
 import sys
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import psycopg2
 import pytz
-import yfinance as yf
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -39,7 +44,7 @@ from gennyx.strategy.position import PositionSizer
 # Configuration (matches proven Futures project config/settings.py)
 # ---------------------------------------------------------------------------
 BASE_CONFIG = {
-    "symbol": "NQ=F",
+    "symbol": "/MNQ",
     "days": 60,
     # UT Bot
     "ut_sensitivity": 3.5,
@@ -136,34 +141,95 @@ def is_near_close(ts: pd.Timestamp, end_str: str, start_str: str,
 
 
 # ---------------------------------------------------------------------------
-# Data fetching
+# Data fetching (from PostgreSQL candles table)
 # ---------------------------------------------------------------------------
-def fetch_data(symbol: str, days: int):
-    """Download 5m and 1h OHLCV data from Yahoo Finance."""
-    print(f"Fetching {symbol} data from Yahoo Finance ...")
-    ticker = yf.Ticker(symbol)
+def fetch_data(symbol: str, days: int = None, start_date: str = None,
+               end_date: str = None, db_url: str = None):
+    """
+    Fetch 5m OHLCV data from database and aggregate to 1h.
 
-    df_5m = ticker.history(period=f"{days}d", interval="5m")
-    df_1h = ticker.history(period=f"{days + 10}d", interval="1h")
+    Args:
+        symbol: Trading symbol (e.g., '/MNQ')
+        days: Number of days to fetch (from today backwards)
+        start_date: Start date string 'YYYY-MM-DD' (overrides days)
+        end_date: End date string 'YYYY-MM-DD' (default: today)
+        db_url: Database URL (default: DATABASE_URL env var)
 
-    # Normalise column names
-    df_5m.columns = [c.lower().replace(" ", "_") for c in df_5m.columns]
-    df_1h.columns = [c.lower().replace(" ", "_") for c in df_1h.columns]
+    Returns:
+        (df_5m, df_1h) DataFrames with ET-localized timestamps
+    """
+    db_url = db_url or os.environ.get("DATABASE_URL")
+    if not db_url:
+        raise ValueError(
+            "DATABASE_URL environment variable not set.\n"
+            "Set it or pass db_url parameter."
+        )
 
-    ohlcv = ["open", "high", "low", "close", "volume"]
-    df_5m = df_5m[[c for c in ohlcv if c in df_5m.columns]]
-    df_1h = df_1h[[c for c in ohlcv if c in df_1h.columns]]
+    # Determine date range
+    if end_date:
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+    else:
+        end_dt = datetime.now(timezone.utc).replace(tzinfo=None)
 
-    # Timezone -> America/New_York
-    tz = "America/New_York"
-    for df in (df_5m, df_1h):
-        if df.index.tz is not None:
-            df.index = df.index.tz_convert(tz)
-        else:
-            df.index = df.index.tz_localize("UTC").tz_convert(tz)
+    if start_date:
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+    elif days:
+        start_dt = end_dt - timedelta(days=days)
+    else:
+        start_dt = end_dt - timedelta(days=60)
 
-    df_5m.dropna(inplace=True)
-    df_1h.dropna(inplace=True)
+    print(f"Fetching {symbol} data from database ...")
+    print(f"  Date range: {start_dt.date()} to {end_dt.date()}")
+
+    conn = psycopg2.connect(db_url)
+    try:
+        query = """
+            SELECT timestamp, open, high, low, close, volume
+            FROM candles
+            WHERE symbol = %s
+              AND timeframe = '5m'
+              AND timestamp >= %s
+              AND timestamp <= %s
+            ORDER BY timestamp
+        """
+        with conn.cursor() as cur:
+            cur.execute(query, (symbol, start_dt, end_dt))
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    if not rows:
+        raise ValueError(
+            f"No candles found for {symbol} in date range.\n"
+            f"Run scripts/fetch_history.py to populate the candles table."
+        )
+
+    # Build DataFrame
+    df_5m = pd.DataFrame(rows, columns=["timestamp", "open", "high", "low", "close", "volume"])
+    df_5m["timestamp"] = pd.to_datetime(df_5m["timestamp"])
+
+    # Convert naive UTC to ET
+    df_5m["timestamp"] = df_5m["timestamp"].dt.tz_localize("UTC").dt.tz_convert("America/New_York")
+    df_5m.set_index("timestamp", inplace=True)
+
+    # Convert Decimal to float
+    for col in ["open", "high", "low", "close"]:
+        df_5m[col] = df_5m[col].astype(float)
+    df_5m["volume"] = df_5m["volume"].astype(int)
+
+    # Drop duplicates (keep last)
+    df_5m = df_5m[~df_5m.index.duplicated(keep="last")]
+
+    # Aggregate 5m to 1h
+    df_1h = df_5m.resample("1h").agg({
+        "open": "first",
+        "high": "max",
+        "low": "min",
+        "close": "last",
+        "volume": "sum",
+    }).dropna()
+
+    print(f"  Loaded {len(df_5m):,} 5m bars, aggregated to {len(df_1h):,} 1h bars")
 
     return df_5m, df_1h
 
@@ -637,7 +703,7 @@ def plot_equity(rth_curve, ovn_curve, combined_curve, initial_capital):
 
     axes[0].axhline(y=initial_capital, color="gray", linestyle="--", alpha=0.5)
     axes[0].set_ylabel("Equity ($)")
-    axes[0].set_title("GenNyx Backtest -- NQ=F 60-Day (RTH / Overnight / Combined)")
+    axes[0].set_title("GenNyx Backtest -- /MNQ (RTH / Overnight / Combined)")
     axes[0].legend(loc="upper left")
     axes[0].grid(True, alpha=0.3)
 
@@ -670,14 +736,16 @@ def plot_equity(rth_curve, ovn_curve, combined_curve, initial_capital):
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
-def main():
+def main(days: int = None, start_date: str = None, end_date: str = None):
     cfg = BASE_CONFIG.copy()
+    if days:
+        cfg["days"] = days
     cap = cfg["initial_capital"]
 
     print("=" * 84)
-    print(f"{'GenNyx Backtester -- NQ=F 60-Day (Session-Based Strategy)':^84}")
+    print(f"{'GenNyx Backtester -- /MNQ (Database-Backed)':^84}")
     print("=" * 84)
-    print(f"  Symbol:           {cfg['symbol']} (using MNQ contract specs)")
+    print(f"  Symbol:           {cfg['symbol']}")
     print(f"  Initial Capital:  ${cap:,.2f}")
     print(f"  Risk Per Trade:   {cfg['risk_per_trade']:.0%}")
     print(f"  Point Value:      ${cfg['point_value']}")
@@ -686,9 +754,14 @@ def main():
     print(f"  Overnight:        16:00-09:30 ET | Simple UT Bot, Heikin-Ashi candles")
     print()
 
-    # 1. Fetch data (once)
+    # 1. Fetch data from database
     t0 = time.time()
-    df_5m_raw, df_1h_raw = fetch_data(cfg["symbol"], cfg["days"])
+    df_5m_raw, df_1h_raw = fetch_data(
+        cfg["symbol"],
+        days=cfg["days"],
+        start_date=start_date,
+        end_date=end_date,
+    )
     print(f"  5m bars:  {len(df_5m_raw):,}  ({df_5m_raw.index[0].strftime('%Y-%m-%d')} to "
           f"{df_5m_raw.index[-1].strftime('%Y-%m-%d')})")
     print(f"  1h bars:  {len(df_1h_raw):,}  ({df_1h_raw.index[0].strftime('%Y-%m-%d')} to "
@@ -754,18 +827,23 @@ def main():
     print("\nBacktest complete.")
 
 
-def sweep_sensitivity():
+def sweep_sensitivity(days: int = None, start_date: str = None, end_date: str = None):
     """Run backtest across multiple UT Bot sensitivity values (overnight only)."""
     sensitivities = [3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0]
     cfg = BASE_CONFIG.copy()
     cap = cfg["initial_capital"]
 
     print("=" * 90)
-    print(f"{'UT Bot Sensitivity Sweep -- Overnight Only (Intrabar Stops)':^90}")
+    print(f"{'UT Bot Sensitivity Sweep -- Overnight Only (Database-Backed)':^90}")
     print("=" * 90)
 
-    # Fetch data once
-    df_5m_raw, df_1h_raw = fetch_data(cfg["symbol"], cfg["days"])
+    # Fetch data once from database
+    df_5m_raw, df_1h_raw = fetch_data(
+        cfg["symbol"],
+        days=days or cfg["days"],
+        start_date=start_date,
+        end_date=end_date,
+    )
     print(f"  5m bars: {len(df_5m_raw):,}  |  1h bars: {len(df_1h_raw):,}\n")
 
     results = []
@@ -799,23 +877,28 @@ def sweep_sensitivity():
     print("=" * 90)
 
 
-def compare_atr_modes():
+def compare_atr_modes(days: int = None, start_date: str = None, end_date: str = None):
     """Compare HA ATR vs Raw ATR backtest results side-by-side."""
     cfg = BASE_CONFIG.copy()
     cap = cfg["initial_capital"]
 
     w = 90
     print("=" * w)
-    print(f"{'HA ATR vs Raw ATR Comparison -- Overnight Session':^{w}}")
+    print(f"{'HA ATR vs Raw ATR Comparison -- Overnight Session (Database-Backed)':^{w}}")
     print("=" * w)
-    print(f"  Symbol:           {cfg['symbol']} (MNQ specs)")
+    print(f"  Symbol:           {cfg['symbol']}")
     print(f"  Initial Capital:  ${cap:,.2f}")
     print(f"  UT Sensitivity:   {cfg['ut_sensitivity']}")
     print(f"  ATR Period:       {cfg['ut_atr_period']}")
     print()
 
-    # Fetch data once
-    df_5m_raw, df_1h_raw = fetch_data(cfg["symbol"], cfg["days"])
+    # Fetch data once from database
+    df_5m_raw, df_1h_raw = fetch_data(
+        cfg["symbol"],
+        days=days or cfg["days"],
+        start_date=start_date,
+        end_date=end_date,
+    )
     print(f"  5m bars: {len(df_5m_raw):,}  |  1h bars: {len(df_1h_raw):,}\n")
 
     modes = [
@@ -976,9 +1059,23 @@ def compare_atr_modes():
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "sweep":
-        sweep_sensitivity()
-    elif len(sys.argv) > 1 and sys.argv[1] == "compare":
-        compare_atr_modes()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="GenNyx Backtester")
+    parser.add_argument("command", nargs="?", default="run",
+                        choices=["run", "sweep", "compare"],
+                        help="Command to run (default: run)")
+    parser.add_argument("--days", type=int, default=None,
+                        help="Number of days to backtest (default: 60)")
+    parser.add_argument("--start", type=str, default=None,
+                        help="Start date YYYY-MM-DD (overrides --days)")
+    parser.add_argument("--end", type=str, default=None,
+                        help="End date YYYY-MM-DD (default: today)")
+    args = parser.parse_args()
+
+    if args.command == "sweep":
+        sweep_sensitivity(days=args.days, start_date=args.start, end_date=args.end)
+    elif args.command == "compare":
+        compare_atr_modes(days=args.days, start_date=args.start, end_date=args.end)
     else:
-        main()
+        main(days=args.days, start_date=args.start, end_date=args.end)

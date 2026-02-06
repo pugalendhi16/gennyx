@@ -12,10 +12,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from gennyx.indicators.ut_bot import ut_bot_alert
 
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql://neondb_owner:npg_Xxz6nJLTpeB3@ep-blue-smoke-ah94a4rs-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require",
-)
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is required")
 
 
 def fetch_candles(

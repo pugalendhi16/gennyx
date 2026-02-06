@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Test script to simulate Heroku deployment environment."""
+"""Test script to simulate Heroku deployment environment.
+
+USAGE: Set environment variables before running:
+    DATABASE_URL=... SCHWAB_API_KEY=... SCHWAB_API_SECRET=... python scripts/test_heroku_deploy.py
+
+Or use Heroku CLI:
+    heroku run python scripts/test_heroku_deploy.py --app gennyx-qa
+"""
 
 import os
 import sys
@@ -8,25 +15,30 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# Set environment variables to simulate Heroku
-os.environ['DATABASE_URL'] = 'postgresql://neondb_owner:npg_Xxz6nJLTpeB3@ep-misty-art-ahzc67o1-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require'
-os.environ['SCHWAB_API_KEY'] = 'm5DsqKq6GYpe5LMM12ppBkHZgnl4V0VN'
-os.environ['SCHWAB_API_SECRET'] = 'Ah9AFQbkxVjpxtAZ'
-os.environ['SCHWAB_SYMBOL'] = '/MNQ'
-os.environ['SIMPLE_MODE'] = 'true'
-os.environ['LOG_LEVEL'] = 'INFO'
+# Verify required environment variables
+required_vars = ['DATABASE_URL', 'SCHWAB_API_KEY', 'SCHWAB_API_SECRET']
+missing = [v for v in required_vars if not os.environ.get(v)]
+if missing:
+    print(f"ERROR: Missing required environment variables: {', '.join(missing)}")
+    print("\nSet them before running this script:")
+    print("  DATABASE_URL=... SCHWAB_API_KEY=... SCHWAB_API_SECRET=... python scripts/test_heroku_deploy.py")
+    sys.exit(1)
+
+# Set defaults for optional vars
+os.environ.setdefault('SCHWAB_SYMBOL', '/MNQ')
+os.environ.setdefault('SIMPLE_MODE', 'true')
+os.environ.setdefault('LOG_LEVEL', 'INFO')
 
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s | %(levelname)-8s | %(message)s')
 
 def main():
     print('=' * 60)
-    print('Final Heroku Deployment Simulation Test')
+    print('Heroku Deployment Simulation Test')
     print('=' * 60)
 
     # 1. Test config loading
     print('\n[1] Testing config loading...')
-    from pathlib import Path
     from gennyx.config import Config
     config = Config.from_env(config_dir=Path('/nonexistent'))
     print(f'    API Key: {config.schwab_api_key[:8]}...')

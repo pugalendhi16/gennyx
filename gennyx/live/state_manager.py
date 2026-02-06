@@ -4,14 +4,36 @@ import json
 import logging
 import os
 import time
-from datetime import datetime
-from typing import Optional, Dict, Any
+from datetime import datetime, timezone
+from typing import Optional, Dict, Any, Union
 
 import psycopg2
 from psycopg2.extras import Json
 
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_timestamp(ts: Union[str, datetime, None]) -> Optional[datetime]:
+    """
+    Normalize timestamp to naive UTC for consistent database storage.
+
+    All timestamps are stored as naive UTC to avoid timezone confusion.
+    This ensures trades and candles can be joined correctly.
+    """
+    if ts is None:
+        return None
+
+    # If it's a string (ISO format), parse it
+    if isinstance(ts, str):
+        ts = datetime.fromisoformat(ts)
+
+    # If it has timezone info, convert to UTC
+    if ts.tzinfo is not None:
+        ts = ts.astimezone(timezone.utc)
+
+    # Return naive datetime (strip timezone)
+    return ts.replace(tzinfo=None)
 
 
 class StatePersistence:
@@ -354,6 +376,10 @@ class StatePersistence:
         try:
             conn = self._get_connection()
             with conn.cursor() as cur:
+                # Normalize timestamps to naive UTC
+                entry_time = _normalize_timestamp(trade.get("entry_time"))
+                exit_time = _normalize_timestamp(trade.get("exit_time"))
+
                 cur.execute("""
                     INSERT INTO trades (
                         symbol, entry_time, exit_time, entry_price, exit_price,
@@ -363,8 +389,8 @@ class StatePersistence:
                     RETURNING id
                 """, (
                     symbol,
-                    trade.get("entry_time"),
-                    trade.get("exit_time"),
+                    entry_time,
+                    exit_time,
                     trade.get("entry_price"),
                     trade.get("exit_price"),
                     trade.get("quantity"),
@@ -403,13 +429,16 @@ class StatePersistence:
         try:
             conn = self._get_connection()
             with conn.cursor() as cur:
+                # Normalize timestamp to naive UTC for consistency
+                timestamp = _normalize_timestamp(signal.get("timestamp"))
+
                 cur.execute("""
                     INSERT INTO signals (
                         symbol, timestamp, signal_type, price, stop_loss, atr, reason, executed
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     symbol,
-                    signal.get("timestamp"),
+                    timestamp,
                     signal.get("signal_type"),
                     signal.get("price"),
                     signal.get("stop_loss"),
@@ -448,6 +477,9 @@ class StatePersistence:
         try:
             conn = self._get_connection()
             with conn.cursor() as cur:
+                # Normalize timestamp to naive UTC for consistency with trades
+                timestamp = _normalize_timestamp(candle.get("timestamp"))
+
                 cur.execute("""
                     INSERT INTO candle_signals (
                         symbol, timestamp, open, high, low, close, volume,
@@ -471,7 +503,7 @@ class StatePersistence:
                         ha_close = EXCLUDED.ha_close
                 """, (
                     symbol,
-                    candle.get("timestamp"),
+                    timestamp,
                     candle.get("open"),
                     candle.get("high"),
                     candle.get("low"),
@@ -516,6 +548,9 @@ class StatePersistence:
         try:
             conn = self._get_connection()
             with conn.cursor() as cur:
+                # Normalize timestamp to naive UTC for consistency
+                timestamp = _normalize_timestamp(candle.get("timestamp"))
+
                 cur.execute("""
                     INSERT INTO candles (
                         symbol, timeframe, timestamp, open, high, low, close, volume
@@ -530,7 +565,7 @@ class StatePersistence:
                 """, (
                     symbol,
                     timeframe,
-                    candle.get("timestamp"),
+                    timestamp,
                     candle.get("open"),
                     candle.get("high"),
                     candle.get("low"),

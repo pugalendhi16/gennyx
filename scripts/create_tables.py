@@ -5,10 +5,9 @@ import os
 
 import psycopg2
 
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql://neondb_owner:npg_Xxz6nJLTpeB3@ep-blue-smoke-ah94a4rs-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require",
-)
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is required")
 
 SCHEMA_SQL = """
 -- ============================================

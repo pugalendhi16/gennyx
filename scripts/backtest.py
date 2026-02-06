@@ -44,6 +44,7 @@ BASE_CONFIG = {
     # UT Bot
     "ut_sensitivity": 3.5,
     "ut_atr_period": 10,
+    "ut_confirmation_bars": 1,  # TOS-style: 1 bar confirmation
     # Supertrend
     "st_atr_period": 8,
     "st_multiplier": 2.5,
@@ -177,7 +178,8 @@ def add_indicators(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     ut = ut_bot_alert(result, sensitivity=cfg["ut_sensitivity"],
                       atr_period=cfg["ut_atr_period"],
                       use_heikin_ashi=cfg.get("use_heikin_ashi", False),
-                      use_ha_atr=cfg.get("use_ha_atr", None))
+                      use_ha_atr=cfg.get("use_ha_atr", None),
+                      confirmation_bars=cfg.get("ut_confirmation_bars", 0))
     result = pd.concat([result, ut], axis=1)
 
     st = supertrend(result, atr_period=cfg["st_atr_period"],
@@ -679,6 +681,7 @@ def main():
     print(f"  Initial Capital:  ${cap:,.2f}")
     print(f"  Risk Per Trade:   {cfg['risk_per_trade']:.0%}")
     print(f"  Point Value:      ${cfg['point_value']}")
+    print(f"  UT Bot:           sens={cfg['ut_sensitivity']}, ATR={cfg['ut_atr_period']}, confirm={cfg['ut_confirmation_bars']}")
     print(f"  RTH:              9:30-16:00 ET  | Full MTF filtered, regular candles")
     print(f"  Overnight:        16:00-09:30 ET | Simple UT Bot, Heikin-Ashi candles")
     print()

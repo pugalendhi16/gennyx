@@ -12,13 +12,16 @@ except ImportError:
 def calculate_atr(
     high: pd.Series, low: pd.Series, close: pd.Series, period: int = 10
 ) -> pd.Series:
-    """Calculate Average True Range manually as fallback."""
+    """Calculate Average True Range using Wilder's RMA (matches TOS/TradingView)."""
     high_low = high - low
     high_close = (high - close.shift(1)).abs()
     low_close = (low - close.shift(1)).abs()
 
     true_range = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
-    atr = true_range.rolling(window=period).mean()
+
+    # Use Wilder's smoothing (RMA) - same as EMA with alpha = 1/period
+    # This matches TOS and TradingView ATR calculation
+    atr = true_range.ewm(alpha=1/period, min_periods=period, adjust=False).mean()
 
     return atr
 
@@ -29,6 +32,7 @@ def ut_bot_alert(
     atr_period: int = 10,
     use_heikin_ashi: bool = False,
     use_ha_atr: bool = None,
+    confirmation_bars: int = 0,
 ) -> pd.DataFrame:
     """
     UT Bot Alert indicator (QuantNomad TradingView version).
@@ -43,6 +47,9 @@ def ut_bot_alert(
         atr_period: Period for ATR calculation
         use_heikin_ashi: Whether to use Heikin-Ashi source for calculations
         use_ha_atr: Whether ATR uses HA OHLC (None = follow use_heikin_ashi)
+        confirmation_bars: Number of bars trend must persist before signal is valid.
+                          Signal is shown on the confirmation bar. Use 1 to match TOS.
+                          0 = no confirmation (original behavior).
 
     Returns:
         DataFrame with columns:
@@ -116,10 +123,34 @@ def ut_bot_alert(
     trend_series = pd.Series(trend, index=df.index)
     prev_trend = trend_series.shift(1)
 
-    # Buy signal: trend changes from -1 to 1 (or 0 to 1)
-    result["ut_buy_signal"] = (trend_series == 1) & (prev_trend != 1)
+    if confirmation_bars <= 0:
+        # Original behavior: signal on trend change bar
+        result["ut_buy_signal"] = (trend_series == 1) & (prev_trend != 1)
+        result["ut_sell_signal"] = (trend_series == -1) & (prev_trend != -1)
+    else:
+        # TOS-style: require confirmation bars, signal shown on confirmation bar
+        buy_signal = np.zeros(n, dtype=bool)
+        sell_signal = np.zeros(n, dtype=bool)
 
-    # Sell signal: trend changes from 1 to -1 (or 0 to -1)
-    result["ut_sell_signal"] = (trend_series == -1) & (prev_trend != -1)
+        for i in range(1, n - confirmation_bars):
+            # Check for trend change at bar i
+            if trend[i] != trend[i - 1] and trend[i - 1] != 0:
+                # Check if trend persists for confirmation_bars
+                confirmed = True
+                for j in range(1, confirmation_bars + 1):
+                    if trend[i + j] != trend[i]:
+                        confirmed = False
+                        break
+
+                if confirmed:
+                    # Signal shown on the confirmation bar
+                    signal_bar = i + confirmation_bars
+                    if trend[i] == 1:
+                        buy_signal[signal_bar] = True
+                    else:
+                        sell_signal[signal_bar] = True
+
+        result["ut_buy_signal"] = buy_signal
+        result["ut_sell_signal"] = sell_signal
 
     return result

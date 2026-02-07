@@ -63,6 +63,7 @@ class LiveTradingEngine:
         self._last_quote_time: Optional[datetime] = None
         self._last_bar_time: Optional[datetime] = None
         self._current_session: Optional[str] = None
+        self._last_candle_ohlc: Optional[tuple] = None  # Track (O,H,L,C) to detect stale data
 
         # Setup signal handlers
         self._setup_signal_handlers()
@@ -348,6 +349,21 @@ class LiveTradingEngine:
             logger.debug("Skipping bar close - futures market closed")
             return
 
+        # Detect stale candles (identical OHLC = no real trading, e.g., maintenance 5-6PM ET)
+        current_ohlc = (
+            float(completed_candle.open),
+            float(completed_candle.high),
+            float(completed_candle.low),
+            float(completed_candle.close),
+        )
+        if self._last_candle_ohlc is not None and current_ohlc == self._last_candle_ohlc:
+            logger.warning(
+                f"Skipping stale candle (identical OHLC): {completed_candle.timestamp} | "
+                f"O:{current_ohlc[0]:.2f} H:{current_ohlc[1]:.2f} "
+                f"L:{current_ohlc[2]:.2f} C:{current_ohlc[3]:.2f}"
+            )
+            return
+
         bar_close_price = completed_candle.close
 
         logger.info(
@@ -357,6 +373,7 @@ class LiveTradingEngine:
         )
 
         self._last_bar_time = completed_candle.timestamp
+        self._last_candle_ohlc = current_ohlc  # Update for next comparison
 
         # Check session transition first (auto mode only)
         session_changed = self._check_session_transition(quote, bar_close_price)

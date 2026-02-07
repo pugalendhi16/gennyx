@@ -27,6 +27,13 @@ class LiveTradingEngine:
     and executes paper trades. Designed for Heroku deployment.
     """
 
+    # CME Futures hours: Sunday 6PM ET through Friday 5PM ET
+    # Closed: Friday 5PM ET through Sunday 6PM ET
+    FUTURES_CLOSE_DAY = 4  # Friday (0=Monday)
+    FUTURES_CLOSE_HOUR = 17  # 5PM ET
+    FUTURES_OPEN_DAY = 6  # Sunday
+    FUTURES_OPEN_HOUR = 18  # 6PM ET
+
     def __init__(self, config):
         """
         Initialize the live trading engine.
@@ -36,6 +43,7 @@ class LiveTradingEngine:
         """
         self.config = config
         self.tz = pytz.timezone(config.timezone)
+        self._market_closed_logged = False  # Track if we've logged market closed
 
         # Initialize components
         self.data_feed = SchwabDataFeed(config)
@@ -77,6 +85,34 @@ class LiveTradingEngine:
         if rth_start <= current_minutes < rth_end:
             return "rth"
         return "overnight"
+
+    def _is_futures_market_closed(self) -> bool:
+        """
+        Check if CME futures markets are closed.
+
+        CME Equity Index Futures (MNQ, NQ, ES, etc.):
+        - Open: Sunday 6:00 PM ET through Friday 5:00 PM ET
+        - Closed: Friday 5:00 PM ET through Sunday 6:00 PM ET
+
+        Returns True when markets are closed.
+        """
+        now = datetime.now(self.tz)  # Already in ET
+        weekday = now.weekday()  # 0=Monday, 4=Friday, 5=Saturday, 6=Sunday
+        hour = now.hour
+
+        # Saturday: always closed
+        if weekday == 5:
+            return True
+
+        # Friday at or after 5PM ET: closed
+        if weekday == self.FUTURES_CLOSE_DAY and hour >= self.FUTURES_CLOSE_HOUR:
+            return True
+
+        # Sunday before 6PM ET: closed
+        if weekday == self.FUTURES_OPEN_DAY and hour < self.FUTURES_OPEN_HOUR:
+            return True
+
+        return False
 
     def _apply_session_config(self, session: str):
         """Apply session-specific configuration and recalculate indicators."""
@@ -237,6 +273,22 @@ class LiveTradingEngine:
 
         while self._running and not self._shutdown_requested:
             try:
+                # Check if futures market is closed (Friday 5PM ET - Sunday 6PM ET)
+                if self._is_futures_market_closed():
+                    if not self._market_closed_logged:
+                        now = datetime.now(self.tz)
+                        logger.info(
+                            f"Futures market closed (Fri 5PM - Sun 6PM ET). "
+                            f"Current: {now.strftime('%A %I:%M %p %Z')}. Sleeping..."
+                        )
+                        self._market_closed_logged = True
+                    time.sleep(300)  # Sleep 5 minutes during market closure
+                    continue
+                else:
+                    if self._market_closed_logged:
+                        logger.info("Futures market open. Resuming polling...")
+                        self._market_closed_logged = False
+
                 # Fetch quote
                 quote = self._fetch_quote()
                 if quote is None:
@@ -245,6 +297,23 @@ class LiveTradingEngine:
 
                 # Process quote and check for bar close
                 completed_primary, completed_htf = self.candle_builder.process_quote(quote)
+
+                # Check max risk hard stop every poll (before bar close logic)
+                if self.paper_trader.has_position():
+                    unrealized = self.paper_trader.get_unrealized_pnl(quote.last_price)
+                    max_risk = self.paper_trader.capital * self.config.risk_per_trade
+                    if unrealized <= -max_risk:
+                        logger.warning(
+                            f"MAX RISK STOP: Unrealized loss ${abs(unrealized):.2f} exceeds "
+                            f"max risk ${max_risk:.2f}"
+                        )
+                        exit_signal = LiveSignal(
+                            timestamp=datetime.now(self.tz),
+                            signal_type="exit_long",
+                            price=quote.last_price,
+                            reason=f"Max risk stop: loss ${abs(unrealized):.2f} exceeds ${max_risk:.2f}",
+                        )
+                        self._execute_exit(exit_signal, quote.last_price)
 
                 # On bar close, update indicators and check signals
                 if completed_primary:

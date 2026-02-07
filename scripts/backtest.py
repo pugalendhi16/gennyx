@@ -75,7 +75,7 @@ BASE_CONFIG = {
     # Warmup
     "warmup_bars": 100,
     # Hour filter (skip entries during these hours ET)
-    "blocked_hours": [1, 5, 7, 8, 9, 21, 22, 23],
+    "blocked_hours": [1, 5, 6, 7, 8, 9, 21, 22, 23],
 }
 
 # Session-specific overrides

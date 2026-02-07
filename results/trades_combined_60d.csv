@@ -1,0 +1,227 @@
+entry_time,exit_time,entry_price,exit_price,quantity,pnl,entry_reason,exit_reason,session
+2025-08-07 16:00:00-04:00,2025-08-07 23:55:00-04:00,23504.25,23553.25,7,647.5,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23554.75),overnight
+2025-08-10 20:10:00-04:00,2025-08-11 00:25:00-04:00,23733.0,23741.0,10,105.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23744.13),overnight
+2025-08-11 02:45:00-04:00,2025-08-11 03:25:00-04:00,23748.25,23742.0,10,-180.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23744.13),overnight
+2025-08-11 06:25:00-04:00,2025-08-11 06:30:00-04:00,23738.0,23729.5,10,-225.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23735.13),overnight
+2025-08-12 00:40:00-04:00,2025-08-12 01:00:00-04:00,23668.25,23618.75,10,-1045.0,Long entry: UT Bot buy signal,Max risk stop: loss $1045.00 >= $910.42,overnight
+2025-08-12 03:10:00-04:00,2025-08-12 03:15:00-04:00,23667.25,23658.5,10,-230.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23659.70),overnight
+2025-08-12 03:55:00-04:00,2025-08-12 04:10:00-04:00,23665.75,23651.75,10,-335.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23659.70),overnight
+2025-08-13 19:45:00-04:00,2025-08-13 19:50:00-04:00,23956.25,23952.75,10,-125.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23956.29),overnight
+2025-08-14 04:00:00-04:00,2025-08-14 04:35:00-04:00,23934.75,23928.5,10,-180.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23929.33),overnight
+2025-08-14 06:35:00-04:00,2025-08-14 06:40:00-04:00,23934.0,23927.75,10,-180.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23929.33),overnight
+2025-08-14 06:55:00-04:00,2025-08-14 08:30:00-04:00,23935.0,23822.0,10,-2315.0,Long entry: UT Bot buy signal,Max risk stop: loss $2315.00 >= $847.57,overnight
+2025-08-14 19:10:00-04:00,2025-08-14 19:30:00-04:00,23901.25,23896.5,9,-135.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23902.36),overnight
+2025-08-14 19:45:00-04:00,2025-08-14 19:50:00-04:00,23900.75,23895.0,9,-153.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23902.36),overnight
+2025-08-17 18:15:00-04:00,2025-08-17 23:30:00-04:00,23838.0,23860.75,9,360.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23862.91),overnight
+2025-08-19 03:05:00-04:00,2025-08-19 03:10:00-04:00,23761.5,23757.75,9,-117.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23763.61),overnight
+2025-08-19 03:50:00-04:00,2025-08-19 04:05:00-04:00,23768.75,23763.5,9,-144.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23763.61),overnight
+2025-08-19 04:30:00-04:00,2025-08-19 06:45:00-04:00,23768.75,23768.75,9,-49.5,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23770.75),overnight
+2025-08-20 02:40:00-04:00,2025-08-20 07:35:00-04:00,23385.5,23393.25,9,90.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23403.57),overnight
+2025-08-20 20:35:00-04:00,2025-08-20 20:50:00-04:00,23304.0,23284.0,9,-409.5,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23284.53),overnight
+2025-08-21 18:15:00-04:00,2025-08-21 18:20:00-04:00,23241.5,23236.5,9,-139.5,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23236.92),overnight
+2025-08-21 18:45:00-04:00,2025-08-21 19:30:00-04:00,23240.5,23233.0,9,-184.5,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23236.92),overnight
+2025-08-22 03:15:00-04:00,2025-08-22 09:25:00-04:00,23173.25,23264.75,9,1597.5,Long entry: UT Bot buy signal,End of day exit,overnight
+2025-08-27 02:25:00-04:00,2025-08-27 02:50:00-04:00,23614.0,23604.0,10,-255.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23604.91),overnight
+2025-08-27 03:10:00-04:00,2025-08-27 03:15:00-04:00,23604.5,23595.0,10,-245.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23604.91),overnight
+2025-08-28 02:20:00-04:00,2025-08-28 06:40:00-04:00,23562.25,23599.75,9,625.5,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23604.24),overnight
+2025-08-28 06:55:00-04:00,2025-08-28 07:05:00-04:00,23611.5,23597.25,10,-340.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23604.24),overnight
+2025-08-31 18:10:00-04:00,2025-08-31 21:50:00-04:00,23504.75,23509.25,10,35.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23516.73),overnight
+2025-09-01 02:45:00-04:00,2025-09-01 07:25:00-04:00,23447.75,23465.25,9,265.5,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23466.73),overnight
+2025-09-04 00:10:00-04:00,2025-09-04 01:20:00-04:00,23488.25,23467.0,10,-480.0,Long entry: UT Bot buy signal,Hard stop hit at 23469.29,overnight
+2025-09-04 03:10:00-04:00,2025-09-04 07:50:00-04:00,23486.75,23488.0,10,-30.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23492.58),overnight
+2025-09-05 04:10:00-04:00,2025-09-05 07:55:00-04:00,23771.5,23769.25,9,-90.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23772.93),overnight
+2025-09-07 18:40:00-04:00,2025-09-07 22:15:00-04:00,23729.25,23739.5,9,135.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23746.86),overnight
+2025-09-08 02:10:00-04:00,2025-09-08 08:10:00-04:00,23755.75,23747.0,10,-230.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23755.93),overnight
+2025-09-08 16:05:00-04:00,2025-09-08 16:20:00-04:00,23809.25,23799.0,9,-234.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23799.07),overnight
+2025-09-08 18:05:00-04:00,2025-09-08 21:20:00-04:00,23813.25,23796.25,9,-355.5,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23799.07),overnight
+2025-09-10 06:40:00-04:00,2025-09-10 09:25:00-04:00,23925.25,23998.0,9,1260.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2025-09-10 18:50:00-04:00,2025-09-10 20:10:00-04:00,23892.5,23883.0,10,-245.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23885.16),overnight
+2025-09-10 20:30:00-04:00,2025-09-11 00:20:00-04:00,23893.75,23888.0,10,-170.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (23897.95),overnight
+2025-09-11 02:25:00-04:00,2025-09-11 08:30:00-04:00,23905.5,23882.75,10,-510.0,Long entry: UT Bot buy signal,Hard stop hit at 23890.13,overnight
+2025-09-12 03:00:00-04:00,2025-09-12 03:40:00-04:00,24027.5,24009.0,9,-382.5,Long entry: UT Bot buy signal,Hard stop hit at 24012.57,overnight
+2025-09-12 06:35:00-04:00,2025-09-12 07:05:00-04:00,24016.75,24013.5,9,-108.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24016.20),overnight
+2025-09-12 16:20:00-04:00,2025-09-15 04:00:00-04:00,24113.0,24326.0,9,3784.5,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24367.15),overnight
+2025-09-17 02:55:00-04:00,2025-09-17 04:10:00-04:00,24532.0,24527.75,10,-140.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24529.71),overnight
+2025-09-18 03:05:00-04:00,2025-09-18 08:55:00-04:00,24625.25,24690.0,10,1240.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24707.70),overnight
+2025-09-18 18:10:00-04:00,2025-09-18 18:30:00-04:00,24739.75,24732.25,10,-205.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24732.86),overnight
+2025-09-18 19:00:00-04:00,2025-09-18 20:10:00-04:00,24736.0,24723.75,10,-300.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24732.86),overnight
+2025-09-19 06:20:00-04:00,2025-09-19 09:25:00-04:00,24715.75,24768.25,10,995.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2025-09-22 04:20:00-04:00,2025-09-22 04:45:00-04:00,24812.5,24803.0,10,-245.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24807.37),overnight
+2025-09-22 19:00:00-04:00,2025-09-23 00:25:00-04:00,24993.0,24988.5,10,-145.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24989.17),overnight
+2025-09-23 03:20:00-04:00,2025-09-23 03:25:00-04:00,24987.0,24988.5,10,-25.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24989.17),overnight
+2025-09-23 03:35:00-04:00,2025-09-23 07:10:00-04:00,25000.0,24976.5,10,-525.0,Long entry: UT Bot buy signal,Hard stop hit at 24980.11,overnight
+2025-09-24 00:50:00-04:00,2025-09-24 03:10:00-04:00,24852.0,24853.25,10,-30.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24861.51),overnight
+2025-09-24 03:45:00-04:00,2025-09-24 07:40:00-04:00,24885.25,24880.5,10,-150.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24883.40),overnight
+2025-09-24 16:05:00-04:00,2025-09-25 00:15:00-04:00,24749.75,24773.75,10,425.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24774.77),overnight
+2025-09-25 04:05:00-04:00,2025-09-25 04:45:00-04:00,24755.5,24730.75,10,-550.0,Long entry: UT Bot buy signal,Hard stop hit at 24730.99,overnight
+2025-09-25 20:15:00-04:00,2025-09-25 20:25:00-04:00,24621.75,24614.75,10,-195.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24617.49),overnight
+2025-09-29 02:15:00-04:00,2025-09-29 07:10:00-04:00,24833.0,24861.0,10,505.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24866.90),overnight
+2025-09-30 02:15:00-04:00,2025-09-30 02:40:00-04:00,24846.25,24838.75,10,-205.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24842.54),overnight
+2025-10-01 04:45:00-04:00,2025-10-01 09:25:00-04:00,24721.5,24763.75,10,790.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2025-10-02 16:10:00-04:00,2025-10-02 16:20:00-04:00,25119.75,25115.0,10,-150.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25116.99),overnight
+2025-10-02 19:30:00-04:00,2025-10-03 01:55:00-04:00,25118.75,25171.0,10,990.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25172.94),overnight
+2025-10-03 02:15:00-04:00,2025-10-03 06:30:00-04:00,25178.0,25171.0,10,-195.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25172.94),overnight
+2025-10-05 18:10:00-04:00,2025-10-06 00:00:00-04:00,25032.75,25076.0,10,810.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25076.64),overnight
+2025-10-06 04:00:00-04:00,2025-10-06 09:25:00-04:00,25096.75,25214.25,10,2295.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2025-10-07 00:10:00-04:00,2025-10-07 02:15:00-04:00,25177.25,25164.5,10,-310.0,Long entry: UT Bot buy signal,Hard stop hit at 25165.18,overnight
+2025-10-08 03:30:00-04:00,2025-10-08 07:20:00-04:00,25069.25,25075.5,10,70.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25075.54),overnight
+2025-10-09 03:10:00-04:00,2025-10-09 03:25:00-04:00,25345.0,25333.75,10,-280.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25341.11),overnight
+2025-10-10 02:00:00-04:00,2025-10-10 02:35:00-04:00,25346.5,25323.5,10,-515.0,Long entry: UT Bot buy signal,Hard stop hit at 25327.95,overnight
+2025-10-10 04:15:00-04:00,2025-10-10 04:20:00-04:00,25329.25,25326.75,10,-105.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25329.30),overnight
+2025-10-10 04:40:00-04:00,2025-10-10 05:00:00-04:00,25335.5,25320.5,10,-355.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25329.30),overnight
+2025-10-12 18:05:00-04:00,2025-10-12 23:40:00-04:00,24688.0,24796.25,2,422.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24796.46),overnight
+2025-10-13 00:30:00-04:00,2025-10-13 04:25:00-04:00,24801.0,24855.75,10,1040.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24857.61),overnight
+2025-10-13 04:55:00-04:00,2025-10-13 05:05:00-04:00,24874.5,24857.25,10,-400.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24857.61),overnight
+2025-10-13 06:35:00-04:00,2025-10-13 06:40:00-04:00,24865.25,24841.5,10,-530.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24857.61),overnight
+2025-10-15 00:15:00-04:00,2025-10-15 09:25:00-04:00,24817.75,25001.75,10,3625.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2025-10-15 16:05:00-04:00,2025-10-15 20:30:00-04:00,24945.25,24895.25,7,-738.5,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24910.20),overnight
+2025-10-16 03:45:00-04:00,2025-10-16 08:10:00-04:00,25011.25,25031.75,10,355.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25039.13),overnight
+2025-10-19 20:00:00-04:00,2025-10-19 20:05:00-04:00,25005.0,25002.0,10,-115.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25005.93),overnight
+2025-10-19 20:45:00-04:00,2025-10-20 04:40:00-04:00,25031.75,25088.25,10,1075.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25090.85),overnight
+2025-10-20 16:10:00-04:00,2025-10-20 23:45:00-04:00,25316.75,25325.0,10,110.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25338.20),overnight
+2025-10-22 00:00:00-04:00,2025-10-22 03:05:00-04:00,25309.5,25289.5,10,-455.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25290.27),overnight
+2025-10-22 03:30:00-04:00,2025-10-22 04:05:00-04:00,25297.0,25281.75,10,-360.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25290.27),overnight
+2025-10-22 06:45:00-04:00,2025-10-22 06:55:00-04:00,25301.0,25286.5,10,-345.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25288.79),overnight
+2025-10-22 18:10:00-04:00,2025-10-22 19:50:00-04:00,25039.5,25011.75,10,-610.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25017.56),overnight
+2025-10-22 20:25:00-04:00,2025-10-23 00:10:00-04:00,25027.25,25072.5,10,850.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25074.88),overnight
+2025-10-23 00:25:00-04:00,2025-10-23 00:30:00-04:00,25080.75,25066.5,10,-340.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25074.88),overnight
+2025-10-24 03:35:00-04:00,2025-10-24 03:45:00-04:00,25359.25,25337.75,10,-485.0,Long entry: UT Bot buy signal,Hard stop hit at 25339.37,overnight
+2025-10-24 04:50:00-04:00,2025-10-24 09:25:00-04:00,25356.75,25466.75,10,2145.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2025-10-26 18:05:00-04:00,2025-10-27 04:25:00-04:00,25723.5,25776.75,7,707.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25778.12),overnight
+2025-10-27 04:40:00-04:00,2025-10-27 07:45:00-04:00,25792.75,25814.25,10,375.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25816.91),overnight
+2025-10-27 20:40:00-04:00,2025-10-27 20:45:00-04:00,25982.5,25978.75,10,-130.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25983.06),overnight
+2025-10-28 06:20:00-04:00,2025-10-28 09:25:00-04:00,25987.25,26051.5,10,1230.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2025-10-28 18:05:00-04:00,2025-10-28 18:45:00-04:00,26181.75,26173.75,10,-215.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (26174.04),overnight
+2025-10-28 19:20:00-04:00,2025-10-28 20:00:00-04:00,26186.0,26172.5,10,-325.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (26174.04),overnight
+2025-10-28 20:25:00-04:00,2025-10-28 20:50:00-04:00,26185.5,26172.5,10,-315.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (26174.04),overnight
+2025-10-29 16:00:00-04:00,2025-10-29 16:05:00-04:00,26331.25,26215.0,4,-952.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (26263.40),overnight
+2025-10-29 20:15:00-04:00,2025-10-30 00:05:00-04:00,26284.25,26306.25,10,385.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (26335.89),overnight
+2025-10-30 16:20:00-04:00,2025-10-31 01:50:00-04:00,26019.25,26166.0,7,2016.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (26168.02),overnight
+2025-10-31 02:05:00-04:00,2025-10-31 02:50:00-04:00,26172.0,26156.0,10,-375.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (26168.02),overnight
+2025-10-31 03:35:00-04:00,2025-10-31 04:10:00-04:00,26198.0,26160.0,10,-815.0,Long entry: UT Bot buy signal,Hard stop hit at 26171.03,overnight
+2025-10-31 04:30:00-04:00,2025-10-31 04:35:00-04:00,26177.5,26166.25,10,-280.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (26171.82),overnight
+2025-10-31 06:35:00-04:00,2025-10-31 08:40:00-04:00,26188.25,26219.5,10,570.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (26220.21),overnight
+2025-11-02 18:10:00-05:00,2025-11-02 21:35:00-05:00,26070.75,26073.5,10,0.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (26075.32),overnight
+2025-11-03 00:35:00-05:00,2025-11-03 00:45:00-05:00,26085.5,26068.0,10,-405.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (26075.32),overnight
+2025-11-03 03:45:00-05:00,2025-11-03 09:25:00-05:00,26080.75,26235.5,10,3040.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2025-11-04 06:20:00-05:00,2025-11-04 07:00:00-05:00,25766.0,25736.25,10,-650.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25759.85),overnight
+2025-11-05 06:45:00-05:00,2025-11-05 09:25:00-05:00,25473.0,25542.0,10,1325.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2025-11-06 00:25:00-05:00,2025-11-06 00:30:00-05:00,25725.5,25719.75,10,-170.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25726.57),overnight
+2025-11-06 04:15:00-05:00,2025-11-06 09:00:00-05:00,25734.0,25744.75,10,160.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25764.47),overnight
+2025-11-07 00:10:00-05:00,2025-11-07 03:30:00-05:00,25294.5,25290.25,10,-140.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25290.77),overnight
+2025-11-07 03:45:00-05:00,2025-11-07 04:00:00-05:00,25316.75,25289.75,10,-595.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25290.77),overnight
+2025-11-12 00:05:00-05:00,2025-11-12 03:00:00-05:00,25725.25,25768.0,10,800.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25772.93),overnight
+2025-11-12 03:20:00-05:00,2025-11-12 06:25:00-05:00,25787.5,25744.0,10,-925.0,Long entry: UT Bot buy signal,Hard stop hit at 25763.30,overnight
+2025-11-12 20:10:00-05:00,2025-11-13 02:50:00-05:00,25696.5,25671.0,9,-508.5,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25676.27),overnight
+2025-11-13 03:55:00-05:00,2025-11-13 04:00:00-05:00,25677.0,25661.0,10,-375.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25676.27),overnight
+2025-11-14 00:45:00-05:00,2025-11-14 01:00:00-05:00,25094.75,25076.75,10,-415.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25089.46),overnight
+2025-11-14 16:15:00-05:00,2025-11-16 18:00:00-05:00,25153.0,25031.0,7,-1746.5,Long entry: UT Bot buy signal,Max risk stop: loss $1746.50 >= $1225.18,overnight
+2025-11-16 18:20:00-05:00,2025-11-17 01:50:00-05:00,25141.75,25230.25,7,1200.5,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25235.06),overnight
+2025-11-17 02:00:00-05:00,2025-11-17 04:35:00-05:00,25241.5,25278.75,10,690.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25292.49),overnight
+2025-11-17 16:15:00-05:00,2025-11-17 16:25:00-05:00,24916.5,24898.5,7,-290.5,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24907.30),overnight
+2025-11-17 18:05:00-05:00,2025-11-17 18:10:00-05:00,24916.75,24903.5,10,-320.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24907.30),overnight
+2025-11-17 18:30:00-05:00,2025-11-17 19:15:00-05:00,24921.75,24878.5,10,-920.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24907.30),overnight
+2025-11-17 20:20:00-05:00,2025-11-17 21:35:00-05:00,24935.5,24874.5,9,-1147.5,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24907.30),overnight
+2025-11-18 03:10:00-05:00,2025-11-18 07:10:00-05:00,24747.5,24708.25,8,-672.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24736.18),overnight
+2025-11-19 02:10:00-05:00,2025-11-19 09:05:00-05:00,24603.0,24630.5,9,445.5,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24648.82),overnight
+2025-11-19 16:25:00-05:00,2025-11-20 01:25:00-05:00,24851.25,25143.0,4,2312.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25145.21),overnight
+2025-11-20 03:10:00-05:00,2025-11-20 03:30:00-05:00,25154.25,25142.0,10,-300.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25145.21),overnight
+2025-11-20 20:25:00-05:00,2025-11-20 20:30:00-05:00,24227.0,24207.5,10,-445.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24208.86),overnight
+2025-11-20 20:45:00-05:00,2025-11-20 20:55:00-05:00,24219.5,24206.0,10,-325.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24208.86),overnight
+2025-11-21 04:00:00-05:00,2025-11-21 04:10:00-05:00,24189.5,24188.0,7,-59.5,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24194.66),overnight
+2025-11-21 06:00:00-05:00,2025-11-21 06:45:00-05:00,24088.0,24044.5,6,-555.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24079.13),overnight
+2025-11-23 18:05:00-05:00,2025-11-23 23:10:00-05:00,24495.0,24453.5,6,-531.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24455.75),overnight
+2025-11-24 00:10:00-05:00,2025-11-24 02:00:00-05:00,24500.5,24454.5,10,-975.0,Long entry: UT Bot buy signal,Hard stop hit at 24457.44,overnight
+2025-11-25 00:40:00-05:00,2025-11-25 00:45:00-05:00,24932.5,24925.0,10,-205.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24926.62),overnight
+2025-11-26 06:25:00-05:00,2025-11-26 06:35:00-05:00,25205.25,25184.75,10,-465.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25196.97),overnight
+2025-11-27 02:50:00-05:00,2025-11-27 03:05:00-05:00,25319.75,25298.0,10,-490.0,Long entry: UT Bot buy signal,Hard stop hit at 25300.72,overnight
+2025-11-27 03:20:00-05:00,2025-11-27 03:45:00-05:00,25321.0,25310.5,10,-265.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25312.76),overnight
+2025-11-27 04:35:00-05:00,2025-11-27 04:45:00-05:00,25318.0,25311.5,10,-185.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25312.76),overnight
+2025-11-27 06:00:00-05:00,2025-11-27 06:15:00-05:00,25315.75,25311.0,10,-150.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25312.76),overnight
+2025-11-27 06:40:00-05:00,2025-11-27 06:50:00-05:00,25320.5,25311.25,10,-240.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25312.76),overnight
+2025-11-27 18:10:00-05:00,2025-11-27 18:15:00-05:00,25317.0,25311.5,10,-165.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25312.76),overnight
+2025-11-27 18:25:00-05:00,2025-11-28 09:25:00-05:00,25322.25,25359.0,10,680.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2025-12-01 02:30:00-05:00,2025-12-01 07:10:00-05:00,25273.5,25265.5,10,-215.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25269.39),overnight
+2025-12-01 20:10:00-05:00,2025-12-01 20:30:00-05:00,25434.75,25423.0,10,-290.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25423.10),overnight
+2025-12-02 02:05:00-05:00,2025-12-02 02:30:00-05:00,25380.5,25374.5,10,-175.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25375.73),overnight
+2025-12-02 03:45:00-05:00,2025-12-02 09:25:00-05:00,25410.0,25492.25,10,1590.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2025-12-02 19:40:00-05:00,2025-12-03 01:30:00-05:00,25607.25,25645.75,10,715.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25649.25),overnight
+2025-12-03 03:55:00-05:00,2025-12-03 04:00:00-05:00,25659.5,25642.0,10,-405.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25649.25),overnight
+2025-12-03 20:05:00-05:00,2025-12-03 21:10:00-05:00,25648.75,25626.25,10,-505.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25632.44),overnight
+2025-12-04 03:45:00-05:00,2025-12-04 03:55:00-05:00,25639.5,25634.75,10,-150.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25636.15),overnight
+2025-12-04 04:30:00-05:00,2025-12-04 06:15:00-05:00,25663.0,25633.5,10,-645.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25636.15),overnight
+2025-12-04 06:30:00-05:00,2025-12-04 08:50:00-05:00,25645.0,25631.25,10,-330.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25636.15),overnight
+2025-12-04 16:05:00-05:00,2025-12-04 18:30:00-05:00,25634.0,25615.25,10,-430.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25616.69),overnight
+2025-12-04 18:55:00-05:00,2025-12-05 04:35:00-05:00,25621.25,25711.5,10,1750.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25712.02),overnight
+2025-12-05 04:50:00-05:00,2025-12-05 07:15:00-05:00,25713.0,25705.25,10,-210.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25712.02),overnight
+2025-12-05 16:05:00-05:00,2025-12-07 19:00:00-05:00,25736.75,25719.75,10,-395.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25725.82),overnight
+2025-12-07 19:30:00-05:00,2025-12-08 03:25:00-05:00,25733.25,25784.5,10,970.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25788.01),overnight
+2025-12-08 04:25:00-05:00,2025-12-08 04:40:00-05:00,25793.75,25781.25,10,-305.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25788.01),overnight
+2025-12-08 06:15:00-05:00,2025-12-08 06:20:00-05:00,25790.75,25776.75,10,-335.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25788.01),overnight
+2025-12-08 16:05:00-05:00,2025-12-08 16:10:00-05:00,25664.25,25660.75,10,-125.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25663.04),overnight
+2025-12-08 16:30:00-05:00,2025-12-08 21:05:00-05:00,25685.0,25688.0,10,5.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25690.85),overnight
+2025-12-09 02:05:00-05:00,2025-12-09 02:15:00-05:00,25690.5,25682.25,10,-220.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25682.25),overnight
+2025-12-10 00:30:00-05:00,2025-12-10 05:20:00-05:00,25682.75,25677.5,10,-160.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25700.86),overnight
+2025-12-10 19:20:00-05:00,2025-12-10 19:30:00-05:00,25725.25,25718.5,10,-190.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25719.24),overnight
+2025-12-11 02:45:00-05:00,2025-12-11 03:00:00-05:00,25539.25,25505.0,10,-740.0,Long entry: UT Bot buy signal,Hard stop hit at 25509.22,overnight
+2025-12-11 04:05:00-05:00,2025-12-11 09:25:00-05:00,25557.5,25643.25,10,1660.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2025-12-12 00:40:00-05:00,2025-12-12 01:30:00-05:00,25695.25,25684.5,10,-270.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25685.53),overnight
+2025-12-14 18:05:00-05:00,2025-12-14 23:10:00-05:00,25397.75,25496.5,5,960.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25499.26),overnight
+2025-12-15 03:00:00-05:00,2025-12-15 03:05:00-05:00,25501.25,25497.5,10,-130.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25502.65),overnight
+2025-12-15 03:25:00-05:00,2025-12-15 09:25:00-05:00,25506.5,25666.5,10,3145.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2025-12-16 03:15:00-05:00,2025-12-16 08:25:00-05:00,25173.5,25229.75,10,1070.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25262.65),overnight
+2025-12-16 19:45:00-05:00,2025-12-16 19:55:00-05:00,25311.0,25304.75,10,-180.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25307.01),overnight
+2025-12-17 00:15:00-05:00,2025-12-17 00:20:00-05:00,25319.75,25311.75,10,-215.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25317.57),overnight
+2025-12-17 00:40:00-05:00,2025-12-17 08:15:00-05:00,25347.0,25422.5,10,1455.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25453.98),overnight
+2025-12-18 00:45:00-05:00,2025-12-18 01:10:00-05:00,24978.5,24977.0,10,-85.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24980.88),overnight
+2025-12-18 02:05:00-05:00,2025-12-18 09:25:00-05:00,24997.25,25279.5,10,5590.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2025-12-22 00:40:00-05:00,2025-12-22 09:25:00-05:00,25675.0,25781.0,10,2065.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2025-12-22 19:55:00-05:00,2025-12-22 20:10:00-05:00,25722.25,25715.0,10,-200.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25719.10),overnight
+2025-12-23 03:15:00-05:00,2025-12-23 06:15:00-05:00,25693.25,25688.0,10,-160.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25692.21),overnight
+2025-12-23 06:30:00-05:00,2025-12-23 07:00:00-05:00,25700.25,25683.75,10,-385.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25692.21),overnight
+2025-12-24 04:20:00-05:00,2025-12-24 05:00:00-05:00,25800.75,25787.75,10,-315.0,Long entry: UT Bot buy signal,Hard stop hit at 25788.97,overnight
+2025-12-24 06:10:00-05:00,2025-12-24 06:15:00-05:00,25799.25,25794.5,10,-150.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25794.68),overnight
+2025-12-26 00:10:00-05:00,2025-12-26 00:35:00-05:00,25881.0,25879.5,10,-85.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25880.04),overnight
+2025-12-28 20:00:00-05:00,2025-12-28 20:05:00-05:00,25878.25,25876.75,10,-85.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25884.03),overnight
+2025-12-30 00:45:00-05:00,2025-12-30 01:15:00-05:00,25742.5,25727.25,10,-360.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25731.52),overnight
+2025-12-30 03:10:00-05:00,2025-12-30 06:05:00-05:00,25725.25,25711.75,10,-325.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25720.06),overnight
+2025-12-30 06:50:00-05:00,2025-12-30 07:30:00-05:00,25733.0,25719.25,10,-330.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25720.06),overnight
+2025-12-31 06:40:00-05:00,2025-12-31 09:25:00-05:00,25605.25,25678.5,10,1410.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2026-01-01 18:50:00-05:00,2026-01-01 19:05:00-05:00,25489.5,25480.0,10,-245.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25492.49),overnight
+2026-01-01 19:25:00-05:00,2026-01-02 07:05:00-05:00,25505.25,25694.75,10,3735.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25697.55),overnight
+2026-01-04 18:05:00-05:00,2026-01-05 02:40:00-05:00,25426.5,25464.25,10,700.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25466.52),overnight
+2026-01-05 02:55:00-05:00,2026-01-05 08:20:00-05:00,25478.0,25527.25,10,930.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25531.32),overnight
+2026-01-08 02:25:00-05:00,2026-01-08 09:25:00-05:00,25758.5,25785.5,10,485.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2026-01-08 16:35:00-05:00,2026-01-08 18:20:00-05:00,25725.25,25699.25,10,-575.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25701.00),overnight
+2026-01-09 00:00:00-05:00,2026-01-09 00:30:00-05:00,25678.25,25673.5,10,-150.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25675.52),overnight
+2026-01-09 03:05:00-05:00,2026-01-09 03:45:00-05:00,25692.0,25671.0,10,-475.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25675.52),overnight
+2026-01-09 04:20:00-05:00,2026-01-09 07:30:00-05:00,25685.0,25722.75,10,700.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25722.77),overnight
+2026-01-12 02:10:00-05:00,2026-01-12 02:15:00-05:00,25735.25,25725.0,10,-260.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25726.32),overnight
+2026-01-12 06:15:00-05:00,2026-01-12 09:25:00-05:00,25714.5,25746.0,10,575.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2026-01-13 00:25:00-05:00,2026-01-13 05:05:00-05:00,25905.25,25892.25,10,-315.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25894.95),overnight
+2026-01-13 16:00:00-05:00,2026-01-13 18:15:00-05:00,25918.75,25892.75,10,-575.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25895.77),overnight
+2026-01-13 19:05:00-05:00,2026-01-13 20:45:00-05:00,25906.75,25885.0,10,-490.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25895.77),overnight
+2026-01-15 00:05:00-05:00,2026-01-15 09:25:00-05:00,25604.75,25924.5,10,6340.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2026-01-15 19:50:00-05:00,2026-01-15 20:20:00-05:00,25759.5,25754.75,10,-150.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25754.97),overnight
+2026-01-19 19:40:00-05:00,2026-01-19 23:55:00-05:00,25399.5,25381.0,10,-425.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25384.03),overnight
+2026-01-20 00:10:00-05:00,2026-01-20 00:55:00-05:00,25383.25,25382.75,10,-65.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25384.03),overnight
+2026-01-20 19:45:00-05:00,2026-01-20 21:30:00-05:00,25179.75,25169.5,10,-260.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25174.50),overnight
+2026-01-22 02:40:00-05:00,2026-01-22 09:25:00-05:00,25587.75,25730.0,10,2790.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2026-01-22 20:05:00-05:00,2026-01-23 02:45:00-05:00,25670.25,25691.75,10,375.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25699.01),overnight
+2026-01-23 06:10:00-05:00,2026-01-23 06:55:00-05:00,25626.75,25607.0,10,-450.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25616.16),overnight
+2026-01-25 20:10:00-05:00,2026-01-26 04:30:00-05:00,25606.75,25654.25,10,895.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25681.26),overnight
+2026-01-26 16:20:00-05:00,2026-01-26 18:00:00-05:00,25866.75,25844.5,10,-500.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25851.17),overnight
+2026-01-26 18:10:00-05:00,2026-01-27 03:10:00-05:00,25868.0,25990.25,10,2390.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25994.76),overnight
+2026-01-28 04:50:00-05:00,2026-01-28 08:10:00-05:00,26280.25,26270.5,10,-250.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (26271.20),overnight
+2026-01-28 16:25:00-05:00,2026-01-28 18:10:00-05:00,26262.5,26163.25,9,-1836.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (26204.30),overnight
+2026-01-28 18:25:00-05:00,2026-01-28 18:35:00-05:00,26209.0,26190.25,10,-430.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (26204.30),overnight
+2026-01-30 06:10:00-05:00,2026-01-30 09:25:00-05:00,25805.5,25834.25,10,520.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2026-02-01 19:25:00-05:00,2026-02-01 20:05:00-05:00,25612.5,25548.25,9,-1206.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25594.08),overnight
+2026-02-02 03:00:00-05:00,2026-02-02 09:25:00-05:00,25373.5,25542.0,10,3315.0,Long entry: UT Bot buy signal,End of day exit,overnight
+2026-02-02 16:30:00-05:00,2026-02-02 16:35:00-05:00,25886.75,25871.0,10,-370.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25881.29),overnight
+2026-02-02 18:05:00-05:00,2026-02-02 21:10:00-05:00,25924.0,25924.75,10,-40.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25927.88),overnight
+2026-02-03 04:05:00-05:00,2026-02-03 04:20:00-05:00,25991.75,25966.5,10,-560.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25976.00),overnight
+2026-02-04 06:40:00-05:00,2026-02-04 07:05:00-05:00,25462.75,25454.75,10,-215.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25465.41),overnight
+2026-02-04 16:35:00-05:00,2026-02-04 19:00:00-05:00,25158.5,25048.0,6,-1359.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25052.99),overnight
+2026-02-05 04:35:00-05:00,2026-02-05 04:40:00-05:00,25046.25,25031.75,10,-345.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (25055.32),overnight
+2026-02-05 20:45:00-05:00,2026-02-06 07:35:00-05:00,24499.0,24780.0,10,5565.0,Long entry: UT Bot buy signal,Close below UT Bot trailing stop (24782.53),overnight

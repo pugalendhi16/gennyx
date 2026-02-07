@@ -75,7 +75,7 @@ BASE_CONFIG = {
     # Warmup
     "warmup_bars": 100,
     # Hour filter (skip entries during these hours ET)
-    "blocked_hours": [],  # e.g., [1, 5, 7, 8, 9, 21, 22, 23]
+    "blocked_hours": [1, 5, 7, 8, 9, 21, 22, 23],
 }
 
 # Session-specific overrides
@@ -394,9 +394,17 @@ def run_backtest(df_5m: pd.DataFrame, htf_aligned, cfg: dict,
 
         # --- EXIT ---
         if position is not None:
-            should_exit, exit_reason = check_exit(
-                row, idx, position["entry_price"],
-                position["entry_atr"], cfg)
+            # Check max risk hard stop first (before regular exit logic)
+            unrealized = sizer.calculate_pnl(
+                position["entry_price"], price, position["quantity"])
+            max_risk = capital * cfg["risk_per_trade"]
+            if not cfg.get("no_max_risk_stop") and unrealized <= -max_risk:
+                should_exit = True
+                exit_reason = f"Max risk stop: loss ${abs(unrealized):.2f} >= ${max_risk:.2f}"
+            else:
+                should_exit, exit_reason = check_exit(
+                    row, idx, position["entry_price"],
+                    position["entry_atr"], cfg)
 
             if should_exit:
                 pnl = sizer.calculate_pnl(position["entry_price"], price,

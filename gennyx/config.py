@@ -156,7 +156,7 @@ class Config:
     margin_buffer: float = 0.80
 
     # Live Trading Settings
-    poll_interval: int = 30
+    poll_interval: int = 60
     save_interval: int = 60
     simple_mode: bool = False
     session_type: str = "overnight"
@@ -231,7 +231,7 @@ class Config:
             blocked_hours=tuple(get_env_list_int("BLOCKED_HOURS", [])),
 
             # Polling
-            poll_interval=get_env_int("POLL_INTERVAL", 30),
+            poll_interval=get_env_int("POLL_INTERVAL", 60),
             save_interval=get_env_int("SAVE_INTERVAL", 60),
 
             # Logging

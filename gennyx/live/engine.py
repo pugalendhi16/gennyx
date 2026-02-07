@@ -343,6 +343,11 @@ class LiveTradingEngine:
 
     def _on_bar_close(self, completed_candle, quote: Quote):
         """Handle bar close event. All entry/exit uses candle close price."""
+        # Skip processing during market closure (safeguard)
+        if self._is_futures_market_closed():
+            logger.debug("Skipping bar close - futures market closed")
+            return
+
         bar_close_price = completed_candle.close
 
         logger.info(
